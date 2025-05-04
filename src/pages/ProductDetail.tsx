@@ -95,7 +95,7 @@ const ProductDetail = () => {
   }
   
   const product = productWithEnterprise;
-  const canViewSensitiveDetails = isProductOwner(product.enterpriseId);
+  const canViewSensitiveDetails = isEnterpriseMember;
   
   return (
     <div className="py-8">
@@ -144,7 +144,7 @@ const ProductDetail = () => {
                 <Badge className="bg-academy-blue">
                   {product.enterprise.name}
                 </Badge>
-                {/* Only show stock status to enterprise owner or don't show exact numbers */}
+                {/* Only show stock status to enterprise members or don't show exact numbers */}
                 {canViewSensitiveDetails ? (
                   <Badge variant="outline" className={`ml-2 ${product.quantity > 0 
                     ? "text-academy-green border-academy-green" 
@@ -160,12 +160,12 @@ const ProductDetail = () => {
                 )}
               </div>
               
-              {/* Price only shown to regular users for purchasing */}
-              {profile?.role !== 'enterprise' || canViewSensitiveDetails ? (
+              {/* Price only shown to enterprise members */}
+              {canViewSensitiveDetails && (
                 <p className="text-3xl font-bold text-academy-blue">
                   {formatPrice(product.price)}
                 </p>
-              ) : null}
+              )}
             </div>
             
             <Tabs defaultValue="details">
@@ -208,6 +208,7 @@ const ProductDetail = () => {
                   </div>
                 </div>
                 
+                {/* Only show additional information to enterprise members */}
                 {canViewSensitiveDetails && (
                   <div>
                     <h3 className="font-medium mb-2">Additional Information</h3>
@@ -215,6 +216,10 @@ const ProductDetail = () => {
                       <li className="flex justify-between">
                         <span className="text-muted-foreground">Available Quantity</span>
                         <span>{product.quantity}</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Price</span>
+                        <span>{formatPrice(product.price)}</span>
                       </li>
                       <li className="flex justify-between">
                         <span className="text-muted-foreground">Last Updated</span>
@@ -233,7 +238,7 @@ const ProductDetail = () => {
             </Tabs>
             
             {/* Show management links for enterprise owners */}
-            {canViewSensitiveDetails && (
+            {isProductOwner(product.enterpriseId) && (
               <div className="mt-8 pt-6 border-t">
                 <h3 className="font-medium mb-4">Product Management</h3>
                 <div className="flex space-x-3">

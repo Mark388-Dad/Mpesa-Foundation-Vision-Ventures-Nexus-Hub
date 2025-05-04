@@ -340,7 +340,7 @@ const ProductsPage = () => {
                     <ProductCard
                       key={product.id}
                       product={product}
-                      enterprise={product.enterprise}
+                      enterpriseName={product.enterprise.name}
                     />
                   ))}
                 </div>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -192,7 +191,7 @@ const Index = () => {
               <ProductCard 
                 key={product.id} 
                 product={product} 
-                enterprise={product.enterprise}
+                enterpriseName={product.enterprise.name}
               />
             ))}
           </div>

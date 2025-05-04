@@ -18,6 +18,9 @@ export function ProductCard({ product, enterpriseName }: ProductCardProps) {
   // Check if user is an enterprise member that owns this product
   const isProductOwner = profile?.role === 'enterprise' && 
                          profile?.enterpriseId === product.enterpriseId;
+  
+  // Only enterprise members (product owners) should see product details
+  const canSeeProductDetails = profile?.role === 'enterprise';
 
   return (
     <Card className="overflow-hidden">
@@ -73,8 +76,8 @@ export function ProductCard({ product, enterpriseName }: ProductCardProps) {
           {product.description}
         </p>
         
-        {/* Only show price to students or the product owner */}
-        {(profile?.role === 'student' || isProductOwner) && (
+        {/* Only show price to enterprise members or product owners */}
+        {canSeeProductDetails && (
           <div className="mt-2 font-bold text-academy-blue">
             {formatPrice(product.price)}
           </div>
