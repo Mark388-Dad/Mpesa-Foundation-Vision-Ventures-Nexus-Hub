@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -253,8 +252,17 @@ const Dashboard = () => {
     }
   });
   
-  const handleAddProduct = (formData: ProductFormData) => {
-    addProductMutation.mutate(formData);
+  const handleAddProduct = async (formData: ProductFormData): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      addProductMutation.mutate(formData, {
+        onSuccess: () => {
+          resolve();
+        },
+        onError: (error) => {
+          reject(error);
+        }
+      });
+    });
   };
   
   const handleBookingStatusChange = (bookingId: string, status: Booking["status"]) => {

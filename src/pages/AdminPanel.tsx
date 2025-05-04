@@ -32,7 +32,16 @@ const AdminPanel = () => {
         
       if (error) throw error;
       
-      return (data || []) as Enterprise[];
+      // Transform database result to match our frontend Enterprise type
+      return (data || []).map(enterprise => ({
+        id: enterprise.id,
+        name: enterprise.name,
+        description: enterprise.description,
+        logoUrl: enterprise.logo_url,
+        ownerId: enterprise.owner_id,
+        createdAt: enterprise.created_at,
+        updatedAt: enterprise.updated_at
+      })) as Enterprise[];
     },
     meta: {
       onError: (error: any) => {
@@ -91,7 +100,19 @@ const AdminPanel = () => {
         
       if (error) throw error;
       
-      return (data || []) as User[];
+      // Transform database result to match our frontend User type
+      return (data || []).map(profile => ({
+        id: profile.id,
+        email: profile.email,
+        username: profile.username,
+        fullName: profile.full_name,
+        admissionNumber: profile.admission_number,
+        phoneNumber: profile.phone_number,
+        role: profile.role as User["role"],
+        enterpriseId: profile.enterprise_id,
+        createdAt: profile.created_at,
+        updatedAt: profile.updated_at
+      })) as User[];
     },
     meta: {
       onError: (error: any) => {
