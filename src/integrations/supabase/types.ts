@@ -9,7 +9,212 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          created_at: string | null
+          id: string
+          pickup_code: string | null
+          product_id: string
+          quantity: number
+          status: string
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          pickup_code?: string | null
+          product_id: string
+          quantity: number
+          status: string
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          pickup_code?: string | null
+          product_id?: string
+          quantity?: number
+          status?: string
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      enterprises: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          logo_url: string | null
+          name: string
+          owner_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          owner_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          owner_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          description: string
+          enterprise_id: string
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          quantity: number
+          updated_at: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          description: string
+          enterprise_id: string
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+          quantity: number
+          updated_at?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          description?: string
+          enterprise_id?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          quantity?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_enterprise_id_fkey"
+            columns: ["enterprise_id"]
+            isOneToOne: false
+            referencedRelation: "enterprises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          admission_number: string | null
+          created_at: string | null
+          email: string
+          enterprise_id: string | null
+          full_name: string | null
+          id: string
+          phone_number: string | null
+          role: string
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          admission_number?: string | null
+          created_at?: string | null
+          email: string
+          enterprise_id?: string | null
+          full_name?: string | null
+          id: string
+          phone_number?: string | null
+          role: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          admission_number?: string | null
+          created_at?: string | null
+          email?: string
+          enterprise_id?: string | null
+          full_name?: string | null
+          id?: string
+          phone_number?: string | null
+          role?: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_enterprise_id_fkey"
+            columns: ["enterprise_id"]
+            isOneToOne: false
+            referencedRelation: "enterprises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

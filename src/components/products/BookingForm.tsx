@@ -3,19 +3,49 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { Product, User } from "@/types";
+import { Product } from "@/types";
 import { formatPrice } from "@/utils/helpers";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface BookingFormProps {
   product: Product;
-  user?: User;
 }
 
-export function BookingForm({ product, user }: BookingFormProps) {
+export function BookingForm({ product }: BookingFormProps) {
   const [quantity, setQuantity] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  
+  const bookingMutation = useMutation({
+    mutationFn: async (bookingData: {
+      productId: string;
+      studentId: string;
+      quantity: number;
+      status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+    }) => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert([bookingData])
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Booking successful! You will receive an email confirmation shortly.");
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      setQuantity(1);
+    },
+    onError: (error: any) => {
+      toast.error(`Booking failed: ${error.message}`);
+    }
+  });
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
@@ -43,47 +73,29 @@ export function BookingForm({ product, user }: BookingFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please login to book this product",
-        variant: "destructive",
-      });
+    if (!user || !profile) {
+      toast.error("Please login to book this product");
+      navigate("/auth");
       return;
     }
     
     if (product.quantity < quantity) {
-      toast({
-        title: "Insufficient Stock",
-        description: `Only ${product.quantity} items available`,
-        variant: "destructive",
-      });
+      toast.error(`Only ${product.quantity} items available`);
       return;
     }
     
-    setIsSubmitting(true);
-    
-    try {
-      // Connect with Supabase here to create booking
-      // For now, we'll just simulate a successful booking
-      
-      setTimeout(() => {
-        toast({
-          title: "Booking Successful",
-          description: "You will receive an email confirmation shortly",
-        });
-        setQuantity(1);
-        setIsSubmitting(false);
-      }, 1000);
-      
-    } catch (error) {
-      toast({
-        title: "Booking Failed",
-        description: "An error occurred. Please try again.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
+    // Check if user is a student
+    if (profile.role !== 'student') {
+      toast.error("Only students can book products");
+      return;
     }
+    
+    bookingMutation.mutate({
+      productId: product.id,
+      studentId: user.id,
+      quantity: quantity,
+      status: 'pending'
+    });
   };
 
   return (
@@ -145,9 +157,9 @@ export function BookingForm({ product, user }: BookingFormProps) {
       <Button 
         type="submit"
         className="w-full btn-primary"
-        disabled={isSubmitting || product.quantity === 0 || !user}
+        disabled={bookingMutation.isPending || product.quantity === 0 || !user}
       >
-        {isSubmitting ? "Processing..." : "Book Now"}
+        {bookingMutation.isPending ? "Processing..." : "Book Now"}
       </Button>
       
       {!user && (

@@ -1,6 +1,4 @@
-
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthFormData, UserRole } from "@/types";
 import { isValidAcademyEmail } from "@/utils/helpers";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const defaultFormData: AuthFormData = {
   email: "",
@@ -25,7 +27,24 @@ export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState<AuthFormData>(defaultFormData);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const { signIn, signUp } = useAuth();
+
+  const { data: enterprises = [] } = useQuery({
+    queryKey: ['enterprises'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('enterprises')
+        .select('id, name');
+        
+      if (error) {
+        toast.error(`Error fetching enterprises: ${error.message}`);
+        throw error;
+      }
+      
+      return data || [];
+    },
+    enabled: !isLogin && formData.role === 'enterprise'
+  });
 
   const handleTabChange = (value: string) => {
     setIsLogin(value === "login");
@@ -50,58 +69,34 @@ export function AuthForm() {
   const validateForm = () => {
     // Client-side validation
     if (!formData.email || !formData.password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
+      toast.error("Please fill in all required fields");
       return false;
     }
 
     if (!isValidAcademyEmail(formData.email)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please use your Mpesa Foundation Academy email",
-        variant: "destructive",
-      });
+      toast.error("Please use your Mpesa Foundation Academy email");
       return false;
     }
 
     if (!isLogin && formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Passwords Don't Match",
-        description: "Please make sure your passwords match",
-        variant: "destructive",
-      });
+      toast.error("Passwords don't match");
       return false;
     }
 
     // Role specific validation
     if (!isLogin) {
       if (formData.role === "student" && !formData.admissionNumber) {
-        toast({
-          title: "Error",
-          description: "Please enter your admission number",
-          variant: "destructive",
-        });
+        toast.error("Please enter your admission number");
         return false;
       }
 
       if (formData.role === "enterprise" && !formData.enterpriseId) {
-        toast({
-          title: "Error",
-          description: "Please select your enterprise",
-          variant: "destructive",
-        });
+        toast.error("Please select your enterprise");
         return false;
       }
 
       if (formData.role === "staff" && !formData.phoneNumber) {
-        toast({
-          title: "Error",
-          description: "Please enter your phone number",
-          variant: "destructive",
-        });
+        toast.error("Please enter your phone number");
         return false;
       }
     }
@@ -119,37 +114,28 @@ export function AuthForm() {
     setIsLoading(true);
     
     try {
-      // Connect to Supabase authentication here
-      // For now, we'll just show a success message
-      toast({
-        title: isLogin ? "Login Successful" : "Registration Successful",
-        description: isLogin 
-          ? "Welcome back to Mpesa Foundation Academy Hub!" 
-          : "Please check your email for verification",
-      });
-
-      if (!isLogin) {
+      if (isLogin) {
+        await signIn(formData.email, formData.password);
+      } else {
+        // Prepare user metadata for Supabase Auth
+        const userData = {
+          role: formData.role,
+          username: formData.username,
+          fullName: formData.fullName,
+          admissionNumber: formData.admissionNumber,
+          phoneNumber: formData.phoneNumber,
+          enterpriseId: formData.enterpriseId
+        };
+        
+        await signUp(formData.email, formData.password, userData);
         setFormData(defaultFormData);
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred. Please try again.",
-        variant: "destructive",
-      });
       console.error("Auth error:", error);
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Mock enterprises for demonstration
-  const enterprises = [
-    { id: "1", name: "Snack Shop" },
-    { id: "2", name: "Soda Corner" },
-    { id: "3", name: "Clothing Store" },
-    { id: "4", name: "Crochet Crafts" }
-  ];
 
   return (
     <Card className="w-full max-w-md mx-auto">

@@ -5,69 +5,50 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookingForm } from "@/components/products/BookingForm";
-import { Product, Enterprise, User } from "@/types";
+import { Product, Enterprise } from "@/types";
 import { formatPrice, formatDate } from "@/utils/helpers";
-
-// Mocked data for demonstration
-const mockProduct: Product & { enterprise: Enterprise } = {
-  id: "1",
-  name: "Chocolate Bar",
-  description: "Delicious milk chocolate bar made with premium ingredients. Perfect for a quick snack or dessert. Made with high-quality cocoa and milk.",
-  price: 50,
-  quantity: 20,
-  imageUrl: undefined,
-  enterpriseId: "1",
-  categoryId: "1",
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  enterprise: {
-    id: "1",
-    name: "Snack Shop",
-    description: "All your favorite snacks in one place",
-    logoUrl: undefined,
-    ownerId: "123",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-};
-
-// Mock user for booking form demonstration
-const mockUser: User = {
-  id: "user1",
-  email: "student@mpesafoundationacademy.ac.ke",
-  username: "student123",
-  admissionNumber: "MFA12345",
-  role: "student",
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const [product, setProduct] = useState<(Product & { enterprise: Enterprise }) | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
-  // Simulate authentication state
-  const [isAuthenticated] = useState(true);
-  const [user] = useState<User>(mockUser);
+  const { data: productWithEnterprise, isLoading, isError } = useQuery({
+    queryKey: ['product', id],
+    queryFn: async () => {
+      if (!id) throw new Error("Product ID is required");
+      
+      // First get the product
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (productError) throw productError;
+      if (!product) throw new Error("Product not found");
+      
+      // Then get the enterprise
+      const { data: enterprise, error: enterpriseError } = await supabase
+        .from('enterprises')
+        .select('*')
+        .eq('id', product.enterprise_id)
+        .single();
+        
+      if (enterpriseError) throw enterpriseError;
+      
+      return {
+        ...product,
+        enterprise
+      } as Product & { enterprise: Enterprise };
+    },
+    onError: (error: any) => {
+      toast.error(`Error loading product: ${error.message}`);
+    }
+  });
   
-  // Fetch product details
-  useEffect(() => {
-    // Simulate API call
-    setLoading(true);
-    setTimeout(() => {
-      if (id === mockProduct.id) {
-        setProduct(mockProduct);
-        setLoading(false);
-      } else {
-        setError("Product not found");
-        setLoading(false);
-      }
-    }, 500);
-  }, [id]);
-  
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="academy-container py-16">
         <div className="text-center">
@@ -77,7 +58,7 @@ const ProductDetail = () => {
     );
   }
   
-  if (error || !product) {
+  if (isError || !productWithEnterprise) {
     return (
       <div className="academy-container py-16">
         <div className="text-center">
@@ -92,6 +73,8 @@ const ProductDetail = () => {
       </div>
     );
   }
+  
+  const product = productWithEnterprise;
   
   return (
     <div className="py-8">
@@ -208,16 +191,13 @@ const ProductDetail = () => {
               </TabsContent>
               
               <TabsContent value="booking">
-                <BookingForm 
-                  product={product} 
-                  user={isAuthenticated ? user : undefined}
-                />
+                <BookingForm product={product} />
               </TabsContent>
             </Tabs>
           </div>
         </div>
         
-        {/* Related Products Section (placeholder) */}
+        {/* Related Products Section */}
         <div>
           <h2 className="text-2xl font-bold mb-6">You may also like</h2>
           <p className="text-muted-foreground text-center py-12">

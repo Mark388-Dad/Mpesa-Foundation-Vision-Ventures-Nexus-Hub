@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
 import StudentBookings from "./pages/StudentBookings";
 import NotFound from "./pages/NotFound";
+import { AuthProvider } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -22,32 +23,34 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Index />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/products/:id" element={<ProductDetail />} />
-            <Route path="/auth" element={<Auth />} />
-          </Route>
-          
-          {/* Student Routes */}
-          <Route path="/" element={<AppLayout userRole="student" />}>
-            <Route path="/bookings" element={<StudentBookings />} />
-          </Route>
-          
-          {/* Enterprise Routes */}
-          <Route path="/" element={<AppLayout userRole="enterprise" />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-          </Route>
-          
-          {/* Staff Routes */}
-          <Route path="/" element={<AppLayout userRole="staff" />}>
-            <Route path="/admin" element={<AdminPanel />} />
-          </Route>
-          
-          {/* Catch-all route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<Index />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/auth" element={<Auth />} />
+            </Route>
+            
+            {/* Student Routes */}
+            <Route path="/" element={<AppLayout userRole="student" />}>
+              <Route path="/bookings" element={<StudentBookings />} />
+            </Route>
+            
+            {/* Enterprise Routes */}
+            <Route path="/" element={<AppLayout userRole="enterprise" />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+            </Route>
+            
+            {/* Staff Routes */}
+            <Route path="/" element={<AppLayout userRole="staff" />}>
+              <Route path="/admin" element={<AdminPanel />} />
+            </Route>
+            
+            {/* Catch-all route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
