@@ -23,14 +23,14 @@ export function BookingForm({ product }: BookingFormProps) {
   
   const bookingMutation = useMutation({
     mutationFn: async (bookingData: {
-      productId: string;
-      studentId: string;
+      product_id: string;
+      student_id: string;
       quantity: number;
       status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
     }) => {
       const { data, error } = await supabase
         .from('bookings')
-        .insert([bookingData])
+        .insert(bookingData)
         .select()
         .single();
         
@@ -91,8 +91,8 @@ export function BookingForm({ product }: BookingFormProps) {
     }
     
     bookingMutation.mutate({
-      productId: product.id,
-      studentId: user.id,
+      product_id: product.id,
+      student_id: user.id,
       quantity: quantity,
       status: 'pending'
     });

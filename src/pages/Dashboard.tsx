@@ -8,154 +8,257 @@ import { useToast } from "@/hooks/use-toast";
 import { ProductForm } from "@/components/dashboard/ProductForm";
 import { BookingsList } from "@/components/dashboard/BookingsList";
 import { Product, ProductFormData, Category, Booking, User } from "@/types";
-
-// Mock data for demonstration
-const mockCategories: Category[] = [
-  { id: "1", name: "Snacks", description: "Delicious treats" },
-  { id: "2", name: "Drinks", description: "Refreshing beverages" },
-  { id: "3", name: "Clothing", description: "Stylish apparel" },
-  { id: "4", name: "Crafts", description: "Handmade items" },
-];
-
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    name: "Chocolate Bar",
-    description: "Delicious milk chocolate",
-    price: 50,
-    quantity: 20,
-    imageUrl: undefined,
-    enterpriseId: "1",
-    categoryId: "1",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    name: "Soda",
-    description: "Refreshing drink",
-    price: 60,
-    quantity: 15,
-    imageUrl: undefined,
-    enterpriseId: "1",
-    categoryId: "2",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-const mockBookings: (Booking & { product: Product; student: User })[] = [
-  {
-    id: "booking1",
-    productId: "1",
-    studentId: "student1",
-    quantity: 2,
-    status: "pending",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    product: mockProducts[0],
-    student: {
-      id: "student1",
-      email: "student@mpesafoundationacademy.ac.ke",
-      admissionNumber: "MFA12345",
-      username: "student123",
-      role: "student",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "booking2",
-    productId: "2",
-    studentId: "student2",
-    quantity: 1,
-    status: "confirmed",
-    pickupCode: "ABC12345",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    product: mockProducts[1],
-    student: {
-      id: "student2",
-      email: "student2@mpesafoundationacademy.ac.ke",
-      admissionNumber: "MFA54321",
-      username: "student456",
-      role: "student",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { Navigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Dashboard = () => {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [bookings, setBookings] = useState<(Booking & { product: Product; student: User })[]>(mockBookings);
-  const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
+  const { user, profile, loading } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
-  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast: uiToast } = useToast();
   
-  const { toast } = useToast();
+  // Redirect if not enterprise user
+  if (loading) {
+    return <div className="academy-container py-16 text-center">Loading...</div>;
+  }
   
-  // Product management functions
-  const handleAddProduct = async (formData: ProductFormData) => {
-    setIsSubmittingProduct(true);
-    
-    try {
-      // Simulate API call to add product
-      const newProduct: Product = {
-        id: `product-${Date.now()}`,
-        name: formData.name,
-        description: formData.description,
-        price: formData.price,
-        quantity: formData.quantity,
-        imageUrl: formData.image ? URL.createObjectURL(formData.image) : undefined,
-        enterpriseId: "1", // Current user's enterprise
-        categoryId: formData.categoryId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+  if (!profile || profile.role !== 'enterprise' || !profile.enterpriseId) {
+    toast.error("You don't have permission to access the enterprise dashboard");
+    return <Navigate to="/" />;
+  }
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*');
+      
+      if (error) throw error;
+      
+      return (data || []).map(category => ({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+      })) as Category[];
+    },
+    meta: {
+      onError: (error: any) => {
+        toast.error(`Error loading categories: ${error.message}`);
+      }
+    }
+  });
+  
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+    queryKey: ['enterprise-products', profile.enterpriseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, categories:category_id(*)')
+        .eq('enterprise_id', profile.enterpriseId);
+      
+      if (error) throw error;
+      
+      return (data || []).map(product => ({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        quantity: product.quantity,
+        imageUrl: product.image_url,
+        enterpriseId: product.enterprise_id,
+        categoryId: product.category_id,
+        createdAt: product.created_at,
+        updatedAt: product.updated_at,
+        category: {
+          id: product.categories.id,
+          name: product.categories.name,
+          description: product.categories.description
+        }
+      })) as (Product & { category: Category })[];
+    },
+    meta: {
+      onError: (error: any) => {
+        toast.error(`Error loading products: ${error.message}`);
+      }
+    }
+  });
+  
+  const { data: bookings = [], isLoading: isLoadingBookings } = useQuery({
+    queryKey: ['enterprise-bookings', profile.enterpriseId],
+    queryFn: async () => {
+      // First get the enterprise's product IDs
+      const { data: enterpriseProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('enterprise_id', profile.enterpriseId);
+      
+      if (!enterpriseProducts || enterpriseProducts.length === 0) {
+        return [];
+      }
+      
+      const productIds = enterpriseProducts.map(p => p.id);
+      
+      // Then get all bookings for those products
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          products:product_id(*),
+          students:student_id(*)
+        `)
+        .in('product_id', productIds);
+      
+      if (error) throw error;
+      
+      return (data || []).map(booking => ({
+        id: booking.id,
+        productId: booking.product_id,
+        studentId: booking.student_id,
+        quantity: booking.quantity,
+        status: booking.status,
+        pickupCode: booking.pickup_code,
+        createdAt: booking.created_at,
+        updatedAt: booking.updated_at,
+        product: {
+          id: booking.products.id,
+          name: booking.products.name,
+          description: booking.products.description,
+          price: booking.products.price,
+          quantity: booking.products.quantity,
+          imageUrl: booking.products.image_url,
+          enterpriseId: booking.products.enterprise_id,
+          categoryId: booking.products.category_id,
+          createdAt: booking.products.created_at,
+          updatedAt: booking.products.updated_at
+        },
+        student: {
+          id: booking.students.id,
+          email: booking.students.email,
+          username: booking.students.username,
+          admissionNumber: booking.students.admission_number,
+          role: booking.students.role,
+          createdAt: booking.students.created_at,
+          updatedAt: booking.students.updated_at
+        }
+      })) as (Booking & { product: Product; student: User })[];
+    },
+    meta: {
+      onError: (error: any) => {
+        toast.error(`Error loading bookings: ${error.message}`);
+      }
+    }
+  });
+  
+  // Product mutation
+  const addProductMutation = useMutation({
+    mutationFn: async (formData: ProductFormData) => {
+      // Check if we need to upload an image first
+      let imageUrl = undefined;
+      
+      if (formData.image) {
+        const fileExt = formData.image.name.split('.').pop();
+        const filePath = `${profile!.enterpriseId}/${Date.now()}.${fileExt}`;
+        
+        // Upload image
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, formData.image);
+          
+        if (uploadError) throw uploadError;
+        
+        // Get public URL
+        const { data } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
+          
+        imageUrl = data.publicUrl;
+      }
+      
+      // Create product
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          name: formData.name,
+          description: formData.description,
+          price: formData.price,
+          quantity: formData.quantity,
+          image_url: imageUrl,
+          enterprise_id: profile!.enterpriseId,
+          category_id: formData.categoryId
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      uiToast({
+        title: "Product Added",
+        description: "Your product has been added successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['enterprise-products'] });
+      setIsDialogOpen(false);
+    },
+    onError: (error: any) => {
+      uiToast({
+        title: "Error",
+        description: `Failed to add product: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Booking status change mutation
+  const updateBookingStatusMutation = useMutation({
+    mutationFn: async ({ bookingId, status }: { bookingId: string, status: Booking["status"] }) => {
+      // Generate a pickup code if confirming booking
+      const pickupCode = status === 'confirmed' 
+        ? Math.random().toString(36).substring(2, 8).toUpperCase() 
+        : undefined;
+        
+      const updates = {
+        status,
+        ...(pickupCode && { pickup_code: pickupCode }),
+        updated_at: new Date().toISOString()
       };
       
-      // Add to state
-      setProducts([...products, newProduct]);
-      
-      toast({
-        title: "Product Added",
-        description: `${formData.name} has been added to your inventory.`,
+      const { data, error } = await supabase
+        .from('bookings')
+        .update(updates)
+        .eq('id', bookingId)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      uiToast({
+        title: "Booking Updated",
+        description: "The booking status has been updated.",
       });
-      
-      setIsDialogOpen(false);
-    } catch (error) {
-      toast({
+      queryClient.invalidateQueries({ queryKey: ['enterprise-bookings'] });
+    },
+    onError: (error: any) => {
+      uiToast({
         title: "Error",
-        description: "Failed to add product. Please try again.",
+        description: `Failed to update booking: ${error.message}`,
         variant: "destructive",
       });
-    } finally {
-      setIsSubmittingProduct(false);
     }
+  });
+  
+  const handleAddProduct = (formData: ProductFormData) => {
+    addProductMutation.mutate(formData);
   };
   
-  // Booking management functions
-  const handleBookingStatusChange = async (bookingId: string, status: Booking["status"]) => {
-    try {
-      // Simulate API call to update booking status
-      const updatedBookings = bookings.map(booking => 
-        booking.id === bookingId ? { ...booking, status } : booking
-      );
-      
-      setBookings(updatedBookings);
-      
-      toast({
-        title: "Booking Updated",
-        description: `Booking status changed to ${status}.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update booking status. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleBookingStatusChange = (bookingId: string, status: Booking["status"]) => {
+    updateBookingStatusMutation.mutate({ bookingId, status });
   };
   
   // Stats calculation
@@ -240,9 +343,9 @@ const Dashboard = () => {
                   <DialogTitle>Add New Product</DialogTitle>
                 </DialogHeader>
                 <ProductForm
-                  categories={mockCategories}
+                  categories={categories}
                   onSubmit={handleAddProduct}
-                  isSubmitting={isSubmittingProduct}
+                  isSubmitting={addProductMutation.isPending}
                 />
               </DialogContent>
             </Dialog>
@@ -281,58 +384,54 @@ const Dashboard = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {products.map(product => {
-                          const category = mockCategories.find(c => c.id === product.categoryId);
-                          
-                          return (
-                            <tr key={product.id} className="border-b">
-                              <td className="py-4 px-4">
-                                <div className="flex items-center">
-                                  <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center mr-3">
-                                    {product.imageUrl ? (
-                                      <img 
-                                        src={product.imageUrl} 
-                                        alt={product.name}
-                                        className="w-full h-full object-cover rounded"
-                                      />
-                                    ) : (
-                                      <span className="text-xs text-muted-foreground">
-                                        No img
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p className="font-medium">{product.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      ID: {product.id.slice(0, 8)}...
-                                    </p>
-                                  </div>
+                        {products.map(product => (
+                          <tr key={product.id} className="border-b">
+                            <td className="py-4 px-4">
+                              <div className="flex items-center">
+                                <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center mr-3">
+                                  {product.imageUrl ? (
+                                    <img 
+                                      src={product.imageUrl} 
+                                      alt={product.name}
+                                      className="w-full h-full object-cover rounded"
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">
+                                      No img
+                                    </span>
+                                  )}
                                 </div>
-                              </td>
-                              <td className="py-4 px-4">
-                                {category?.name || "Unknown"}
-                              </td>
-                              <td className="py-4 px-4 text-right">
-                                KES {product.price}
-                              </td>
-                              <td className="py-4 px-4 text-right">
-                                <span className={`${product.quantity <= 5 ? "text-amber-500" : "text-academy-green"}`}>
-                                  {product.quantity}
-                                </span>
-                              </td>
-                              <td className="py-4 px-4 text-right">
-                                <div className="flex space-x-2 justify-end">
-                                  <Button size="sm" variant="outline">
-                                    Edit
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground">
-                                    Delete
-                                  </Button>
+                                <div>
+                                  <p className="font-medium">{product.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    ID: {product.id.slice(0, 8)}...
+                                  </p>
                                 </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              {product.category?.name || "Unknown"}
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              KES {product.price}
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              <span className={`${product.quantity <= 5 ? "text-amber-500" : "text-academy-green"}`}>
+                                {product.quantity}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex space-x-2 justify-end">
+                                <Button size="sm" variant="outline">
+                                  Edit
+                                </Button>
+                                <Button size="sm" variant="outline" className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground">
+                                  Delete
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>

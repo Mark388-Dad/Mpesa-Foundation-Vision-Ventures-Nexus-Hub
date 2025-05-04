@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -13,9 +13,82 @@ import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
 import StudentBookings from "./pages/StudentBookings";
 import NotFound from "./pages/NotFound";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
+
+// Protected route component
+interface ProtectedRouteProps {
+  userRole: string;
+  children: React.ReactNode;
+}
+
+const ProtectedRoute = ({ userRole, children }: ProtectedRouteProps) => {
+  const { profile, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="academy-container py-16 text-center">Loading...</div>;
+  }
+  
+  if (!profile || profile.role !== userRole) {
+    return <Navigate to="/auth" />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Routes component that uses auth context
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<AppLayout />}>
+        <Route index element={<Index />} />
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/products/:id" element={<ProductDetail />} />
+        <Route path="/auth" element={<Auth />} />
+      </Route>
+      
+      {/* Student Routes */}
+      <Route path="/" element={<AppLayout userRole="student" />}>
+        <Route 
+          path="/bookings" 
+          element={
+            <ProtectedRoute userRole="student">
+              <StudentBookings />
+            </ProtectedRoute>
+          } 
+        />
+      </Route>
+      
+      {/* Enterprise Routes */}
+      <Route path="/" element={<AppLayout userRole="enterprise" />}>
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute userRole="enterprise">
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+      </Route>
+      
+      {/* Staff Routes */}
+      <Route path="/" element={<AppLayout userRole="staff" />}>
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute userRole="staff">
+              <AdminPanel />
+            </ProtectedRoute>
+          } 
+        />
+      </Route>
+      
+      {/* Catch-all route */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,32 +97,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<Index />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/products/:id" element={<ProductDetail />} />
-              <Route path="/auth" element={<Auth />} />
-            </Route>
-            
-            {/* Student Routes */}
-            <Route path="/" element={<AppLayout userRole="student" />}>
-              <Route path="/bookings" element={<StudentBookings />} />
-            </Route>
-            
-            {/* Enterprise Routes */}
-            <Route path="/" element={<AppLayout userRole="enterprise" />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-            </Route>
-            
-            {/* Staff Routes */}
-            <Route path="/" element={<AppLayout userRole="staff" />}>
-              <Route path="/admin" element={<AdminPanel />} />
-            </Route>
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppRoutes />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,29 +21,42 @@ const ProductDetail = () => {
       // First get the product
       const { data: product, error: productError } = await supabase
         .from('products')
-        .select('*')
+        .select('*, enterprises:enterprise_id(*)')
         .eq('id', id)
         .single();
         
       if (productError) throw productError;
       if (!product) throw new Error("Product not found");
       
-      // Then get the enterprise
-      const { data: enterprise, error: enterpriseError } = await supabase
-        .from('enterprises')
-        .select('*')
-        .eq('id', product.enterprise_id)
-        .single();
-        
-      if (enterpriseError) throw enterpriseError;
+      // Transform to match our frontend types
+      const transformedProduct: Product & { enterprise: Enterprise } = {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        quantity: product.quantity,
+        imageUrl: product.image_url,
+        enterpriseId: product.enterprise_id,
+        categoryId: product.category_id,
+        createdAt: product.created_at,
+        updatedAt: product.updated_at,
+        enterprise: {
+          id: product.enterprises.id,
+          name: product.enterprises.name,
+          description: product.enterprises.description,
+          logoUrl: product.enterprises.logo_url,
+          ownerId: product.enterprises.owner_id,
+          createdAt: product.enterprises.created_at,
+          updatedAt: product.enterprises.updated_at
+        }
+      };
       
-      return {
-        ...product,
-        enterprise
-      } as Product & { enterprise: Enterprise };
+      return transformedProduct;
     },
-    onError: (error: any) => {
-      toast.error(`Error loading product: ${error.message}`);
+    meta: {
+      onError: (error: any) => {
+        toast.error(`Error loading product: ${error.message}`);
+      }
     }
   });
   
@@ -200,9 +212,11 @@ const ProductDetail = () => {
         {/* Related Products Section */}
         <div>
           <h2 className="text-2xl font-bold mb-6">You may also like</h2>
-          <p className="text-muted-foreground text-center py-12">
-            Related products will appear here
-          </p>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              Sign in to see related products
+            </p>
+          </div>
         </div>
       </div>
     </div>

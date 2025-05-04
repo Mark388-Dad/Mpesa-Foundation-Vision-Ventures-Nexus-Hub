@@ -6,101 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Booking, Product, Enterprise } from "@/types";
 import { formatPrice, formatDate } from "@/utils/helpers";
-
-// Mock data for demonstration
-const mockBookings: (Booking & { 
-  product: Product & { enterprise: Enterprise } 
-})[] = [
-  {
-    id: "booking1",
-    productId: "1",
-    studentId: "student1",
-    quantity: 2,
-    status: "pending",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    product: {
-      id: "1",
-      name: "Chocolate Bar",
-      description: "Delicious milk chocolate",
-      price: 50,
-      quantity: 20,
-      imageUrl: undefined,
-      enterpriseId: "1",
-      categoryId: "1",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      enterprise: {
-        id: "1",
-        name: "Snack Shop",
-        description: "All your favorite snacks in one place",
-        ownerId: "123",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-    }
-  },
-  {
-    id: "booking2",
-    productId: "2",
-    studentId: "student1",
-    quantity: 1,
-    status: "confirmed",
-    pickupCode: "ABC12345",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    product: {
-      id: "2",
-      name: "Soda",
-      description: "Refreshing drink",
-      price: 60,
-      quantity: 15,
-      imageUrl: undefined,
-      enterpriseId: "2",
-      categoryId: "2",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      enterprise: {
-        id: "2",
-        name: "Soda Corner",
-        description: "Refreshing drinks for everyone",
-        ownerId: "124",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-    }
-  },
-  {
-    id: "booking3",
-    productId: "3",
-    studentId: "student1",
-    quantity: 1,
-    status: "completed",
-    pickupCode: "DEF67890",
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    product: {
-      id: "3",
-      name: "School T-Shirt",
-      description: "Comfortable cotton t-shirt with school logo.",
-      price: 350,
-      quantity: 10,
-      imageUrl: undefined,
-      enterpriseId: "3",
-      categoryId: "3",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      enterprise: {
-        id: "3",
-        name: "Clothing Store",
-        description: "Quality clothing for students",
-        ownerId: "125",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-    }
-  },
-];
+import { useAuth } from "@/context/AuthContext";
+import { Navigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const getStatusBadge = (status: Booking['status']) => {
   switch (status) {
@@ -118,31 +28,109 @@ const getStatusBadge = (status: Booking['status']) => {
 };
 
 const StudentBookings = () => {
-  const [activeBookings, setActiveBookings] = useState(
-    mockBookings.filter(booking => 
-      booking.status === "pending" || booking.status === "confirmed"
-    )
+  const { user, profile, loading } = useAuth();
+  const queryClient = useQueryClient();
+  
+  // Redirect if not student
+  if (loading) {
+    return <div className="academy-container py-16 text-center">Loading...</div>;
+  }
+  
+  if (!profile || profile.role !== 'student') {
+    toast.error("You don't have permission to access this page");
+    return <Navigate to="/" />;
+  }
+  
+  const { data: bookingsData = [], isLoading } = useQuery({
+    queryKey: ['student-bookings', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          products:product_id(*, enterprises:enterprise_id(*))
+        `)
+        .eq('student_id', user?.id);
+        
+      if (error) throw error;
+      
+      // Transform to match our frontend types
+      return (data || []).map(booking => ({
+        id: booking.id,
+        productId: booking.product_id,
+        studentId: booking.student_id,
+        quantity: booking.quantity,
+        status: booking.status,
+        pickupCode: booking.pickup_code,
+        createdAt: booking.created_at,
+        updatedAt: booking.updated_at,
+        product: {
+          id: booking.products.id,
+          name: booking.products.name,
+          description: booking.products.description,
+          price: booking.products.price,
+          quantity: booking.products.quantity,
+          imageUrl: booking.products.image_url,
+          enterpriseId: booking.products.enterprise_id,
+          categoryId: booking.products.category_id,
+          createdAt: booking.products.created_at,
+          updatedAt: booking.products.updated_at,
+          enterprise: {
+            id: booking.products.enterprises.id,
+            name: booking.products.enterprises.name,
+            description: booking.products.enterprises.description,
+            logoUrl: booking.products.enterprises.logo_url,
+            ownerId: booking.products.enterprises.owner_id,
+            createdAt: booking.products.enterprises.created_at,
+            updatedAt: booking.products.enterprises.updated_at,
+          }
+        }
+      })) as (Booking & { 
+        product: Product & { enterprise: Enterprise } 
+      })[];
+    },
+    meta: {
+      onError: (error: any) => {
+        toast.error(`Error loading bookings: ${error.message}`);
+      }
+    },
+    enabled: !!user?.id
+  });
+  
+  const activeBookings = bookingsData.filter(booking => 
+    booking.status === "pending" || booking.status === "confirmed"
   );
-  const [pastBookings, setPastBookings] = useState(
-    mockBookings.filter(booking => 
-      booking.status === "completed" || booking.status === "cancelled"
-    )
+  
+  const pastBookings = bookingsData.filter(booking => 
+    booking.status === "completed" || booking.status === "cancelled"
   );
-  const [isLoading, setIsLoading] = useState(false);
+  
+  const cancelBookingMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', bookingId)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Booking cancelled successfully");
+      queryClient.invalidateQueries({ queryKey: ['student-bookings'] });
+    },
+    onError: (error: any) => {
+      toast.error(`Error cancelling booking: ${error.message}`);
+    }
+  });
   
   const handleCancelBooking = (bookingId: string) => {
-    // Find booking to cancel
-    const bookingToCancel = activeBookings.find(b => b.id === bookingId);
-    if (!bookingToCancel) return;
-    
-    // Update active bookings
-    setActiveBookings(activeBookings.filter(b => b.id !== bookingId));
-    
-    // Add to past bookings with cancelled status
-    setPastBookings([
-      ...pastBookings,
-      { ...bookingToCancel, status: "cancelled" }
-    ]);
+    cancelBookingMutation.mutate(bookingId);
   };
   
   return (
@@ -165,7 +153,7 @@ const StudentBookings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockBookings.length}</div>
+              <div className="text-2xl font-bold">{bookingsData.length}</div>
             </CardContent>
           </Card>
           
@@ -278,8 +266,9 @@ const StudentBookings = () => {
                                 variant="outline"
                                 className="w-full text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
                                 onClick={() => handleCancelBooking(booking.id)}
+                                disabled={cancelBookingMutation.isPending}
                               >
-                                Cancel Booking
+                                {cancelBookingMutation.isPending ? "Cancelling..." : "Cancel Booking"}
                               </Button>
                             )}
                             <Button 
