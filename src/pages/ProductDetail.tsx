@@ -9,9 +9,17 @@ import { formatPrice, formatDate } from "@/utils/helpers";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { profile } = useAuth();
+  
+  // Check if user is an enterprise member
+  const isEnterpriseMember = profile?.role === 'enterprise';
+  // Check if this specific product belongs to the logged in enterprise user
+  const isProductOwner = (enterpriseId: string) => 
+    isEnterpriseMember && profile?.enterpriseId === enterpriseId;
   
   const { data: productWithEnterprise, isLoading, isError } = useQuery({
     queryKey: ['product', id],
@@ -87,6 +95,7 @@ const ProductDetail = () => {
   }
   
   const product = productWithEnterprise;
+  const canViewSensitiveDetails = isProductOwner(product.enterpriseId);
   
   return (
     <div className="py-8">
@@ -135,25 +144,37 @@ const ProductDetail = () => {
                 <Badge className="bg-academy-blue">
                   {product.enterprise.name}
                 </Badge>
-                {product.quantity > 0 ? (
-                  <Badge variant="outline" className="ml-2 text-academy-green border-academy-green">
-                    In Stock
+                {/* Only show stock status to enterprise owner or don't show exact numbers */}
+                {canViewSensitiveDetails ? (
+                  <Badge variant="outline" className={`ml-2 ${product.quantity > 0 
+                    ? "text-academy-green border-academy-green" 
+                    : "text-destructive border-destructive"}`}>
+                    {product.quantity > 0 ? `${product.quantity} In Stock` : "Out of Stock"}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="ml-2 text-destructive border-destructive">
-                    Out of Stock
+                  <Badge variant="outline" className={`ml-2 ${product.quantity > 0 
+                    ? "text-academy-green border-academy-green" 
+                    : "text-destructive border-destructive"}`}>
+                    {product.quantity > 0 ? "In Stock" : "Out of Stock"}
                   </Badge>
                 )}
               </div>
-              <p className="text-3xl font-bold text-academy-blue">
-                {formatPrice(product.price)}
-              </p>
+              
+              {/* Price only shown to regular users for purchasing */}
+              {profile?.role !== 'enterprise' || canViewSensitiveDetails ? (
+                <p className="text-3xl font-bold text-academy-blue">
+                  {formatPrice(product.price)}
+                </p>
+              ) : null}
             </div>
             
             <Tabs defaultValue="details">
               <TabsList className="mb-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="booking">Booking</TabsTrigger>
+                {/* Only show booking tab to student role users */}
+                {profile?.role === 'student' && (
+                  <TabsTrigger value="booking">Booking</TabsTrigger>
+                )}
               </TabsList>
               
               <TabsContent value="details" className="space-y-4">
@@ -187,37 +208,58 @@ const ProductDetail = () => {
                   </div>
                 </div>
                 
-                <div>
-                  <h3 className="font-medium mb-2">Additional Information</h3>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex justify-between">
-                      <span className="text-muted-foreground">Available Quantity</span>
-                      <span>{product.quantity}</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span className="text-muted-foreground">Last Updated</span>
-                      <span>{formatDate(product.updatedAt)}</span>
-                    </li>
-                  </ul>
-                </div>
+                {canViewSensitiveDetails && (
+                  <div>
+                    <h3 className="font-medium mb-2">Additional Information</h3>
+                    <ul className="space-y-2 text-sm">
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Available Quantity</span>
+                        <span>{product.quantity}</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Last Updated</span>
+                        <span>{formatDate(product.updatedAt)}</span>
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </TabsContent>
               
-              <TabsContent value="booking">
-                <BookingForm product={product} />
-              </TabsContent>
+              {profile?.role === 'student' && (
+                <TabsContent value="booking">
+                  <BookingForm product={product} />
+                </TabsContent>
+              )}
             </Tabs>
+            
+            {/* Show management links for enterprise owners */}
+            {canViewSensitiveDetails && (
+              <div className="mt-8 pt-6 border-t">
+                <h3 className="font-medium mb-4">Product Management</h3>
+                <div className="flex space-x-3">
+                  <Button variant="outline" className="flex-1">
+                    Edit Product
+                  </Button>
+                  <Button variant="outline" className="flex-1 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground">
+                    Delete Product
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
         {/* Related Products Section */}
-        <div>
-          <h2 className="text-2xl font-bold mb-6">You may also like</h2>
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">
-              Sign in to see related products
-            </p>
+        {profile && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">You may also like</h2>
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                Coming soon: Related products
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

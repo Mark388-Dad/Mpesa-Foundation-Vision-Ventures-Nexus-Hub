@@ -1,76 +1,91 @@
 
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Product, Enterprise } from "@/types";
-import { formatPrice, truncateText } from "@/utils/helpers";
+import { Product } from "@/types";
+import { formatPrice } from "@/utils/helpers";
+import { useAuth } from "@/context/AuthContext";
 
 interface ProductCardProps {
   product: Product;
-  enterprise?: Enterprise;
+  enterpriseName?: string;
 }
 
-export function ProductCard({ product, enterprise }: ProductCardProps) {
+export function ProductCard({ product, enterpriseName }: ProductCardProps) {
+  const { profile } = useAuth();
+  
+  // Check if user is an enterprise member that owns this product
+  const isProductOwner = profile?.role === 'enterprise' && 
+                         profile?.enterpriseId === product.enterpriseId;
+
   return (
-    <Link to={`/products/${product.id}`}>
-      <Card className="h-full overflow-hidden card-hover">
-        <div className="aspect-square w-full relative overflow-hidden">
-          {product.imageUrl ? (
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="h-full w-full object-cover transition-all"
-            />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center bg-muted">
-              <span className="text-muted-foreground">No image</span>
-            </div>
-          )}
-          
-          {product.quantity <= 5 && product.quantity > 0 && (
-            <Badge className="absolute top-2 right-2 bg-academy-amber">
-              Low Stock
-            </Badge>
-          )}
-          
-          {product.quantity === 0 && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <Badge variant="destructive" className="text-lg">
-                Sold Out
-              </Badge>
-            </div>
-          )}
-        </div>
+    <Card className="overflow-hidden">
+      <div className="aspect-square relative">
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+            <span className="text-muted-foreground">No image</span>
+          </div>
+        )}
+        {enterpriseName && (
+          <Badge className="absolute top-2 left-2 bg-academy-blue">
+            {enterpriseName}
+          </Badge>
+        )}
         
-        <CardContent className="p-4">
-          <h3 className="font-semibold truncate">{product.name}</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            {truncateText(product.description, 60)}
-          </p>
-          
-          {enterprise && (
-            <div className="mt-2">
-              <Badge variant="outline" className="text-xs">
-                {enterprise.name}
-              </Badge>
-            </div>
-          )}
-        </CardContent>
+        {/* Only show stock status to product owners with exact number */}
+        {isProductOwner ? (
+          <Badge 
+            variant="outline"
+            className={`absolute top-2 right-2 ${
+              product.quantity > 0 
+                ? "bg-green-100 text-green-800 border-green-200" 
+                : "bg-red-100 text-red-800 border-red-200"
+            }`}
+          >
+            {product.quantity} in stock
+          </Badge>
+        ) : product.quantity > 0 ? (
+          <Badge 
+            variant="outline"
+            className="absolute top-2 right-2 bg-green-100 text-green-800 border-green-200"
+          >
+            In stock
+          </Badge>
+        ) : (
+          <Badge 
+            variant="outline"
+            className="absolute top-2 right-2 bg-red-100 text-red-800 border-red-200"
+          >
+            Out of stock
+          </Badge>
+        )}
+      </div>
+      <CardContent className="p-4">
+        <h3 className="font-semibold text-lg line-clamp-1">{product.name}</h3>
+        <p className="text-muted-foreground text-sm line-clamp-2 mt-1">
+          {product.description}
+        </p>
         
-        <CardFooter className="p-4 pt-0 flex items-center justify-between">
-          <span className="font-bold text-academy-blue">
+        {/* Only show price to students or the product owner */}
+        {(profile?.role === 'student' || isProductOwner) && (
+          <div className="mt-2 font-bold text-academy-blue">
             {formatPrice(product.price)}
-          </span>
-          
-          {product.quantity > 0 ? (
-            <Badge className="bg-academy-green">Available</Badge>
-          ) : (
-            <Badge variant="outline" className="text-destructive border-destructive">
-              Out of Stock
-            </Badge>
-          )}
-        </CardFooter>
-      </Card>
-    </Link>
+          </div>
+        )}
+      </CardContent>
+      
+      <CardFooter className="p-4 pt-0">
+        <Button asChild className="w-full">
+          <Link to={`/products/${product.id}`}>View Details</Link>
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

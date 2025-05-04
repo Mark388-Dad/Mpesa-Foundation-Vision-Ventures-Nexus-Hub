@@ -39,6 +39,8 @@ const ProtectedRoute = ({ userRole, children }: ProtectedRouteProps) => {
 
 // Routes component that uses auth context
 const AppRoutes = () => {
+  const { profile } = useAuth();
+  
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
