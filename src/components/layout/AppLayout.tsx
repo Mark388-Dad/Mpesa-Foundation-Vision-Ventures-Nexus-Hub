@@ -26,7 +26,7 @@ export function AppLayout({ userRole }: AppLayoutProps) {
         {activeRole === 'enterprise' && <EnterpriseSidebar />}
         {activeRole === 'staff' && <StaffSidebar />}
         
-        <main className="flex-1">
+        <main className="flex-1 bg-gray-50">
           <Outlet />
         </main>
       </div>

@@ -69,6 +69,17 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute userRole="student">
+              <div className="academy-container py-8">
+                <h1 className="text-2xl font-bold mb-6">Student Profile</h1>
+                <p className="text-muted-foreground">Profile management coming soon.</p>
+              </div>
+            </ProtectedRoute>
+          } 
+        />
       </Route>
       
       {/* Enterprise Routes */}
@@ -81,6 +92,17 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute userRole="enterprise">
+              <div className="academy-container py-8">
+                <h1 className="text-2xl font-bold mb-6">Enterprise Profile</h1>
+                <p className="text-muted-foreground">Profile management coming soon.</p>
+              </div>
+            </ProtectedRoute>
+          } 
+        />
       </Route>
       
       {/* Staff Routes */}
@@ -90,6 +112,17 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute userRole="staff">
               <AdminPanel />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute userRole="staff">
+              <div className="academy-container py-8">
+                <h1 className="text-2xl font-bold mb-6">Staff Profile</h1>
+                <p className="text-muted-foreground">Profile management coming soon.</p>
+              </div>
             </ProtectedRoute>
           } 
         />

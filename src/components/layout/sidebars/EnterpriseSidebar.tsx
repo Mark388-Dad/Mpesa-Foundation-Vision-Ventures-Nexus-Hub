@@ -2,12 +2,13 @@
 import { Link } from "react-router-dom";
 import { 
   Package,
-  BarChart,
   Bell,
   User,
   MessageSquare,
   Home,
-  Settings
+  Settings,
+  BarChart,
+  ShoppingCart
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -22,9 +23,10 @@ export function EnterpriseSidebar() {
   const menuItems = [
     { icon: Home, label: "Home", path: "/" },
     { icon: Package, label: "Products", path: "/dashboard" },
-    { icon: Bell, label: "Bookings", path: "/dashboard?tab=bookings" },
+    { icon: ShoppingCart, label: "Bookings", path: "/dashboard?tab=bookings" },
     { icon: BarChart, label: "Analytics", path: "/dashboard/analytics" },
     { icon: User, label: "Profile", path: "/profile" },
+    { icon: Bell, label: "Notifications", path: "/dashboard/notifications" },
     { icon: MessageSquare, label: "Feedback", path: "/dashboard/feedback" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];

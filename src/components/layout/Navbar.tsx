@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { User, Menu, LogOut, Settings } from "lucide-react";
+import { User, Menu, LogOut, Settings, Shield } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserRole } from "@/types";
 import { useAuth } from "@/context/AuthContext";
