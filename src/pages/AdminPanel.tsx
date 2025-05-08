@@ -38,9 +38,9 @@ const AdminPanel = () => {
         name: enterprise.name,
         description: enterprise.description,
         logoUrl: enterprise.logo_url,
-        ownerId: enterprise.owner_id,
-        createdAt: enterprise.created_at,
-        updatedAt: enterprise.updated_at
+        ownerId: enterprise.owner_id, // Map to our frontend type
+        createdAt: enterprise.created_at, // Map to our frontend type
+        updatedAt: enterprise.updated_at // Map to our frontend type
       })) as Enterprise[];
     },
     meta: {
@@ -110,8 +110,8 @@ const AdminPanel = () => {
         phoneNumber: profile.phone_number,
         role: profile.role as User["role"],
         enterpriseId: profile.enterprise_id,
-        createdAt: profile.created_at,
-        updatedAt: profile.updated_at
+        createdAt: profile.created_at, // Map to our frontend type
+        updatedAt: profile.updated_at // Map to our frontend type
       })) as User[];
     },
     meta: {

@@ -19,7 +19,7 @@ export function ProductCard({ product, enterpriseName }: ProductCardProps) {
   const isProductOwner = profile?.role === 'enterprise' && 
                          profile?.enterpriseId === product.enterpriseId;
   
-  // Only enterprise members (product owners) should see product details
+  // Only enterprise members should see product details like price
   const canSeeProductDetails = profile?.role === 'enterprise';
 
   return (
@@ -76,7 +76,7 @@ export function ProductCard({ product, enterpriseName }: ProductCardProps) {
           {product.description}
         </p>
         
-        {/* Only show price to enterprise members or product owners */}
+        {/* Only show price to enterprise members */}
         {canSeeProductDetails && (
           <div className="mt-2 font-bold text-academy-blue">
             {formatPrice(product.price)}

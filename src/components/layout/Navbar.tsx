@@ -10,9 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { User, Menu } from "lucide-react";
+import { User, Menu, LogOut, Settings } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserRole } from "@/types";
+import { useAuth } from "@/context/AuthContext";
 
 interface NavbarProps {
   userRole?: UserRole;
@@ -21,12 +22,24 @@ interface NavbarProps {
 export function Navbar({ userRole }: NavbarProps) {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { profile, signOut } = useAuth();
   
-  // Mocked user state for UI demonstration
-  const isAuthenticated = !!userRole;
+  // Use provided role or the one from auth context
+  const activeRole = userRole || profile?.role;
+  const isAuthenticated = !!profile;
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+  
+  const handleLogout = async () => {
+    if (signOut) {
+      try {
+        await signOut();
+      } catch (error) {
+        console.error("Error logging out:", error);
+      }
+    }
   };
   
   return (
@@ -35,8 +48,15 @@ export function Navbar({ userRole }: NavbarProps) {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
-              <span className="text-xl font-bold text-academy-blue">MFA</span>
-              <span className="text-xl font-bold text-academy-green ml-1">Hub</span>
+              <img 
+                src="/lovable-uploads/fb06c830-b892-411b-a998-cdc07a581c12.png" 
+                alt="MFA Hub Logo" 
+                className="h-12 mr-2"
+              />
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-academy-blue">MFA</span>
+                <span className="text-xl font-bold text-academy-green -mt-1">Hub</span>
+              </div>
             </Link>
           </div>
 
@@ -45,13 +65,13 @@ export function Navbar({ userRole }: NavbarProps) {
             <nav className="hidden md:flex space-x-4">
               <Link to="/" className="nav-link">Home</Link>
               <Link to="/products" className="nav-link">Products</Link>
-              {isAuthenticated && userRole === 'student' && (
+              {isAuthenticated && activeRole === 'student' && (
                 <Link to="/bookings" className="nav-link">My Bookings</Link>
               )}
-              {isAuthenticated && userRole === 'enterprise' && (
+              {isAuthenticated && activeRole === 'enterprise' && (
                 <Link to="/dashboard" className="nav-link">Dashboard</Link>
               )}
-              {isAuthenticated && userRole === 'staff' && (
+              {isAuthenticated && activeRole === 'staff' && (
                 <Link to="/admin" className="nav-link">Admin</Link>
               )}
             </nav>
@@ -66,28 +86,54 @@ export function Navbar({ userRole }: NavbarProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>
+                    {profile?.username || profile?.email}
+                    <div className="text-xs text-muted-foreground font-normal mt-1">
+                      {activeRole?.charAt(0).toUpperCase() + activeRole?.slice(1)}
+                    </div>
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/profile">Profile</Link>
+                    <Link to="/profile" className="flex items-center">
+                      <User className="h-4 w-4 mr-2" />
+                      <span>Profile</span>
+                    </Link>
                   </DropdownMenuItem>
-                  {userRole === 'student' && (
+                  {activeRole === 'student' && (
                     <DropdownMenuItem asChild>
-                      <Link to="/bookings">My Bookings</Link>
+                      <Link to="/bookings" className="flex items-center">
+                        <User className="h-4 w-4 mr-2" />
+                        <span>My Bookings</span>
+                      </Link>
                     </DropdownMenuItem>
                   )}
-                  {userRole === 'enterprise' && (
+                  {activeRole === 'enterprise' && (
                     <DropdownMenuItem asChild>
-                      <Link to="/dashboard">Dashboard</Link>
+                      <Link to="/dashboard" className="flex items-center">
+                        <User className="h-4 w-4 mr-2" />
+                        <span>Dashboard</span>
+                      </Link>
                     </DropdownMenuItem>
                   )}
-                  {userRole === 'staff' && (
+                  {activeRole === 'staff' && (
                     <DropdownMenuItem asChild>
-                      <Link to="/admin">Admin Panel</Link>
+                      <Link to="/admin" className="flex items-center">
+                        <Shield className="h-4 w-4 mr-2" />
+                        <span>Admin Panel</span>
+                      </Link>
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center">
+                      <Settings className="h-4 w-4 mr-2" />
+                      <span>Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="flex items-center">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -115,13 +161,13 @@ export function Navbar({ userRole }: NavbarProps) {
           <div className="md:hidden py-2 space-y-1 animate-fade-in">
             <Link to="/" className="nav-link block">Home</Link>
             <Link to="/products" className="nav-link block">Products</Link>
-            {isAuthenticated && userRole === 'student' && (
+            {isAuthenticated && activeRole === 'student' && (
               <Link to="/bookings" className="nav-link block">My Bookings</Link>
             )}
-            {isAuthenticated && userRole === 'enterprise' && (
+            {isAuthenticated && activeRole === 'enterprise' && (
               <Link to="/dashboard" className="nav-link block">Dashboard</Link>
             )}
-            {isAuthenticated && userRole === 'staff' && (
+            {isAuthenticated && activeRole === 'staff' && (
               <Link to="/admin" className="nav-link block">Admin</Link>
             )}
           </div>

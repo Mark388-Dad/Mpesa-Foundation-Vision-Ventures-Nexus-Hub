@@ -12,6 +12,7 @@ import ProductDetail from "./pages/ProductDetail";
 import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
 import StudentBookings from "./pages/StudentBookings";
+import StudentDashboard from "./pages/StudentDashboard";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -52,6 +53,14 @@ const AppRoutes = () => {
       
       {/* Student Routes */}
       <Route path="/" element={<AppLayout userRole="student" />}>
+        <Route 
+          path="/student" 
+          element={
+            <ProtectedRoute userRole="student">
+              <StudentDashboard />
+            </ProtectedRoute>
+          } 
+        />
         <Route 
           path="/bookings" 
           element={
