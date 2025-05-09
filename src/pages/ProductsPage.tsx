@@ -7,198 +7,12 @@ import { ProductCard } from "@/components/products/ProductCard";
 import { CategoryFilter } from "@/components/products/CategoryFilter";
 import { Product, Category, Enterprise } from "@/types";
 import { Search } from "lucide-react";
-
-// Mock data for demonstration
-const mockProducts: (Product & { enterprise: Enterprise })[] = [
-  {
-    id: "1",
-    name: "Chocolate Bar",
-    description: "Delicious milk chocolate bar made with premium ingredients.",
-    price: 50,
-    quantity: 20,
-    imageUrl: undefined,
-    enterpriseId: "1",
-    categoryId: "1",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "1",
-      name: "Snack Shop",
-      description: "All your favorite snacks in one place",
-      ownerId: "123",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "2",
-    name: "Coca-Cola Can",
-    description: "Refreshing soda drink, perfectly chilled.",
-    price: 60,
-    quantity: 35,
-    imageUrl: undefined,
-    enterpriseId: "2",
-    categoryId: "2",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "2",
-      name: "Soda Corner",
-      description: "Refreshing drinks for everyone",
-      ownerId: "124",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "3",
-    name: "School T-Shirt",
-    description: "Comfortable cotton t-shirt with school logo.",
-    price: 350,
-    quantity: 10,
-    imageUrl: undefined,
-    enterpriseId: "3",
-    categoryId: "3",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "3",
-      name: "Clothing Store",
-      description: "Quality clothing for students",
-      ownerId: "125",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "4",
-    name: "Crochet Pencil Holder",
-    description: "Handmade crochet pencil holder, perfect for your desk.",
-    price: 120,
-    quantity: 5,
-    imageUrl: undefined,
-    enterpriseId: "4",
-    categoryId: "4",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "4",
-      name: "Crochet Crafts",
-      description: "Handmade crochet items made with love",
-      ownerId: "126",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "5",
-    name: "Potato Chips",
-    description: "Crunchy potato chips in various flavors.",
-    price: 30,
-    quantity: 40,
-    imageUrl: undefined,
-    enterpriseId: "1",
-    categoryId: "1",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "1",
-      name: "Snack Shop",
-      description: "All your favorite snacks in one place",
-      ownerId: "123",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "6",
-    name: "Sprite Can",
-    description: "Refreshing lemon-lime soda.",
-    price: 60,
-    quantity: 25,
-    imageUrl: undefined,
-    enterpriseId: "2",
-    categoryId: "2",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "2",
-      name: "Soda Corner",
-      description: "Refreshing drinks for everyone",
-      ownerId: "124",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "7",
-    name: "School Hoodie",
-    description: "Warm hoodie with school emblem.",
-    price: 700,
-    quantity: 8,
-    imageUrl: undefined,
-    enterpriseId: "3",
-    categoryId: "3",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "3",
-      name: "Clothing Store",
-      description: "Quality clothing for students",
-      ownerId: "125",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "8",
-    name: "Crochet Scarf",
-    description: "Handmade soft scarf for cold days.",
-    price: 250,
-    quantity: 3,
-    imageUrl: undefined,
-    enterpriseId: "4",
-    categoryId: "4",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "4",
-      name: "Crochet Crafts",
-      description: "Handmade crochet items made with love",
-      ownerId: "126",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-];
-
-const mockCategories: Category[] = [
-  {
-    id: "1",
-    name: "Snacks",
-    description: "Delicious treats to satisfy your cravings"
-  },
-  {
-    id: "2",
-    name: "Drinks",
-    description: "Refreshing beverages for every occasion"
-  },
-  {
-    id: "3",
-    name: "Clothing",
-    description: "Comfortable and stylish apparel"
-  },
-  {
-    id: "4",
-    name: "Crafts",
-    description: "Handmade items created with skill and passion"
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [products, setProducts] = useState<(Product & { enterprise: Enterprise })[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   
@@ -213,13 +27,70 @@ const ProductsPage = () => {
     if (searchFromUrl) {
       setSearchQuery(searchFromUrl);
     }
-    
-    // Simulate API call
-    setTimeout(() => {
-      setProducts(mockProducts);
-      setLoading(false);
-    }, 500);
   }, [searchParams]);
+  
+  // Fetch categories from Supabase
+  const { data: categories = [], isLoading: loadingCategories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*');
+        
+      if (error) throw error;
+      
+      return (data || []).map(category => ({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        imageUrl: category.image_url
+      })) as Category[];
+    },
+    meta: {
+      onError: (error: any) => {
+        toast.error(`Error loading categories: ${error.message}`);
+      }
+    }
+  });
+  
+  // Fetch products from Supabase
+  const { data: products = [], isLoading: loadingProducts } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, enterprises:enterprise_id(*)');
+        
+      if (error) throw error;
+      
+      return (data || []).map(product => ({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        quantity: product.quantity,
+        imageUrl: product.image_url,
+        enterpriseId: product.enterprise_id,
+        categoryId: product.category_id,
+        createdAt: product.created_at,
+        updatedAt: product.updated_at,
+        enterprise: {
+          id: product.enterprises.id,
+          name: product.enterprises.name,
+          description: product.enterprises.description,
+          logoUrl: product.enterprises.logo_url,
+          ownerId: product.enterprises.owner_id,
+          createdAt: product.enterprises.created_at,
+          updatedAt: product.enterprises.updated_at
+        }
+      })) as (Product & { enterprise: Enterprise })[];
+    },
+    meta: {
+      onError: (error: any) => {
+        toast.error(`Error loading products: ${error.message}`);
+      }
+    }
+  });
   
   const handleSearch = () => {
     const currentParams = Object.fromEntries(searchParams.entries());
@@ -266,6 +137,8 @@ const ProductsPage = () => {
     return matchesSearch && matchesCategory;
   });
   
+  const isLoading = loadingProducts || loadingCategories;
+  
   return (
     <div className="py-8">
       <div className="academy-container">
@@ -298,15 +171,16 @@ const ProductsPage = () => {
           {/* Sidebar with Filters */}
           <div className="md:col-span-1">
             <CategoryFilter
-              categories={mockCategories}
+              categories={categories}
               selectedCategories={selectedCategories}
               onCategoryChange={handleCategoryChange}
+              isLoading={loadingCategories}
             />
           </div>
           
           {/* Product Grid */}
           <div className="md:col-span-3">
-            {loading ? (
+            {isLoading ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">Loading products...</p>
               </div>
