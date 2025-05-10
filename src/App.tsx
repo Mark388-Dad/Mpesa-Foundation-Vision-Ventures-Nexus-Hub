@@ -11,6 +11,9 @@ import ProductsPage from "./pages/ProductsPage";
 import ProductDetail from "./pages/ProductDetail";
 import Dashboard from "./pages/Dashboard";
 import EnterpriseProducts from "./pages/enterprise/EnterpriseProducts";
+import EnterpriseFeedback from "./pages/enterprise/EnterpriseFeedback";
+import EnterpriseNotifications from "./pages/enterprise/EnterpriseNotifications";
+import EnterpriseSettings from "./pages/enterprise/EnterpriseSettings";
 import AdminPanel from "./pages/AdminPanel";
 import StudentBookings from "./pages/StudentBookings";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -106,6 +109,30 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute userRole="enterprise">
               <EnterpriseProducts />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/enterprise/feedback" 
+          element={
+            <ProtectedRoute userRole="enterprise">
+              <EnterpriseFeedback />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/enterprise/notifications" 
+          element={
+            <ProtectedRoute userRole="enterprise">
+              <EnterpriseNotifications />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/enterprise/settings" 
+          element={
+            <ProtectedRoute userRole="enterprise">
+              <EnterpriseSettings />
             </ProtectedRoute>
           } 
         />
