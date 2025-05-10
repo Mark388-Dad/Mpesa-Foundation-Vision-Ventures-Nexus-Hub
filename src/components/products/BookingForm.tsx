@@ -106,7 +106,7 @@ export function BookingForm({ product }: BookingFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {isOwnProduct && (
-        <Alert variant="warning" className="bg-amber-50">
+        <Alert className="bg-amber-50">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>This is your enterprise's product</AlertTitle>
           <AlertDescription>
