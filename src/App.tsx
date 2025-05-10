@@ -31,8 +31,14 @@ const ProtectedRoute = ({ userRole, children }: ProtectedRouteProps) => {
     return <div className="academy-container py-16 text-center">Loading...</div>;
   }
   
-  if (!profile || profile.role !== userRole) {
-    return <Navigate to="/auth" />;
+  // Check if the user is authenticated and has the correct role
+  if (!profile) {
+    return <Navigate to="/auth" replace />;
+  }
+  
+  // If a specific role is required, check if the user has that role
+  if (userRole && profile.role !== userRole) {
+    return <Navigate to="/auth" replace />;
   }
   
   return <>{children}</>;
@@ -48,7 +54,9 @@ const AppRoutes = () => {
         <Route index element={<Index />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/:id" element={<ProductDetail />} />
-        <Route path="/auth" element={<Auth />} />
+        <Route path="/auth" element={
+          profile ? <Navigate to="/" replace /> : <Auth />
+        } />
       </Route>
       
       {/* Student Routes */}
