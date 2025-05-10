@@ -1,57 +1,71 @@
 
-import { Link } from "react-router-dom";
-import { 
-  Package,
-  Bell,
-  User,
-  MessageSquare,
-  Home,
-  Settings,
-  BarChart,
-  ShoppingCart
-} from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Link, useLocation } from "react-router-dom";
+import { Package, BarChart3, MessageSquare, Bell, Settings } from "lucide-react";
 
-export function EnterpriseSidebar() {
-  const { profile } = useAuth();
-  
-  // Only render if authenticated as enterprise member
-  if (!profile || profile.role !== 'enterprise') {
-    return null;
-  }
-  
-  const menuItems = [
-    { icon: Home, label: "Home", path: "/" },
-    { icon: Package, label: "Products", path: "/dashboard" },
-    { icon: ShoppingCart, label: "Bookings", path: "/dashboard?tab=bookings" },
-    { icon: BarChart, label: "Analytics", path: "/dashboard/analytics" },
-    { icon: User, label: "Profile", path: "/profile" },
-    { icon: Bell, label: "Notifications", path: "/dashboard/notifications" },
-    { icon: MessageSquare, label: "Feedback", path: "/dashboard/feedback" },
-    { icon: Settings, label: "Settings", path: "/dashboard/settings" },
+export const EnterpriseSidebar = () => {
+  const { pathname } = useLocation();
+
+  const isActive = (path: string) => {
+    return pathname === path;
+  };
+
+  const routes = [
+    {
+      label: "Dashboard",
+      icon: BarChart3,
+      href: "/dashboard",
+      color: "text-sky-500",
+    },
+    {
+      label: "Products",
+      icon: Package,
+      href: "/enterprise/products",
+      color: "text-violet-500",
+    },
+    {
+      label: "Feedback",
+      icon: MessageSquare,
+      href: "/enterprise/feedback",
+      color: "text-pink-700",
+    },
+    {
+      label: "Notifications",
+      icon: Bell,
+      href: "/enterprise/notifications",
+      color: "text-orange-700",
+    },
+    {
+      label: "Settings",
+      icon: Settings,
+      href: "/enterprise/settings",
+      color: "text-gray-500",
+    },
   ];
-  
+
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 hidden md:block">
-      <div className="p-4">
-        <h2 className="font-semibold text-lg text-academy-green">Enterprise Dashboard</h2>
-      </div>
-      
-      <nav className="mt-4">
-        <ul>
-          {menuItems.map((item) => (
-            <li key={item.path}>
-              <Link
-                to={item.path}
-                className="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100"
-              >
-                <item.icon className="h-5 w-5 mr-3 text-academy-green" />
-                <span>{item.label}</span>
+    <div className="space-y-4 py-4 flex flex-col h-full bg-white text-gray-800">
+      <div className="px-3 py-2">
+        <h2 className="mb-2 px-4 text-lg font-semibold">Enterprise</h2>
+        <div className="space-y-1">
+          {routes.map((route) => (
+            <Button
+              key={route.href}
+              asChild
+              variant={isActive(route.href) ? "default" : "ghost"}
+              className={cn("w-full justify-start", 
+                isActive(route.href) ? "bg-gray-100 hover:bg-gray-100" : ""
+              )}
+            >
+              <Link to={route.href}>
+                <route.icon className={cn("h-5 w-5 mr-3", route.color)} />
+                {route.label}
               </Link>
-            </li>
+            </Button>
           ))}
-        </ul>
-      </nav>
-    </aside>
+        </div>
+      </div>
+    </div>
   );
-}
+};

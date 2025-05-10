@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetail from "./pages/ProductDetail";
 import Dashboard from "./pages/Dashboard";
+import EnterpriseProducts from "./pages/enterprise/EnterpriseProducts";
 import AdminPanel from "./pages/AdminPanel";
 import StudentBookings from "./pages/StudentBookings";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -97,6 +98,14 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute userRole="enterprise">
               <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/enterprise/products" 
+          element={
+            <ProtectedRoute userRole="enterprise">
+              <EnterpriseProducts />
             </ProtectedRoute>
           } 
         />
