@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Product, ProductFormData, Category } from "@/types";
+import { Image, X, Upload, Info } from "lucide-react";
 
 interface ProductFormProps {
   product?: Product;
@@ -215,9 +216,55 @@ export function ProductForm({
               </Select>
             </div>
             
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="image">Product Image</Label>
-              <div className="mt-1 flex items-center">
+              
+              <div className="border-2 border-dashed rounded-md border-gray-300 p-6 flex flex-col items-center justify-center space-y-3">
+                {imagePreview ? (
+                  <div className="relative">
+                    <div className="w-40 h-40 overflow-hidden rounded-md border">
+                      <img 
+                        src={imagePreview} 
+                        alt="Product preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
+                      onClick={() => {
+                        setImagePreview(undefined);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
+                        setFormData(prev => ({ ...prev, image: undefined }));
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-3 rounded-full bg-gray-100">
+                      <Image className="h-6 w-6 text-gray-500" />
+                    </div>
+                    <div className="text-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mb-2"
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Image
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        JPEG, PNG, or WebP. Max 5MB.
+                      </p>
+                    </div>
+                  </>
+                )}
                 <Input
                   ref={fileInputRef}
                   id="image"
@@ -226,42 +273,14 @@ export function ProductForm({
                   onChange={handleImageChange}
                   className="hidden"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {imagePreview ? "Change Image" : "Upload Image"}
-                </Button>
-                {imagePreview && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-red-500 hover:text-red-700 ml-2"
-                    onClick={() => {
-                      setImagePreview(undefined);
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = "";
-                      }
-                      setFormData(prev => ({ ...prev, image: undefined }));
-                    }}
-                  >
-                    Remove
-                  </Button>
-                )}
               </div>
               
-              {imagePreview && (
-                <div className="mt-4">
-                  <div className="w-40 h-40 rounded-md overflow-hidden border">
-                    <img 
-                      src={imagePreview} 
-                      alt="Product preview" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-              )}
+              <div className="flex items-start mt-2">
+                <Info className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
+                  Adding a clear, high-quality product image helps increase booking rates.
+                </p>
+              </div>
             </div>
           </div>
           

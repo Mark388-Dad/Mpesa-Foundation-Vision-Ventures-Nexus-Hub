@@ -1,118 +1,80 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProductCard } from "@/components/products/ProductCard";
 import { Category, Product, Enterprise } from "@/types";
-
-// Mock data for demonstration
-const featuredProducts: (Product & { enterprise: Enterprise })[] = [
-  {
-    id: "1",
-    name: "Chocolate Bar",
-    description: "Delicious milk chocolate bar made with premium ingredients.",
-    price: 50,
-    quantity: 20,
-    imageUrl: undefined,
-    enterpriseId: "1",
-    categoryId: "1",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "1",
-      name: "Snack Shop",
-      description: "All your favorite snacks in one place",
-      ownerId: "123",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "2",
-    name: "Coca-Cola Can",
-    description: "Refreshing soda drink, perfectly chilled.",
-    price: 60,
-    quantity: 35,
-    imageUrl: undefined,
-    enterpriseId: "2",
-    categoryId: "2",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "2",
-      name: "Soda Corner",
-      description: "Refreshing drinks for everyone",
-      ownerId: "124",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "3",
-    name: "School T-Shirt",
-    description: "Comfortable cotton t-shirt with school logo.",
-    price: 350,
-    quantity: 10,
-    imageUrl: undefined,
-    enterpriseId: "3",
-    categoryId: "3",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "3",
-      name: "Clothing Store",
-      description: "Quality clothing for students",
-      ownerId: "125",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-  {
-    id: "4",
-    name: "Crochet Pencil Holder",
-    description: "Handmade crochet pencil holder, perfect for your desk.",
-    price: 120,
-    quantity: 5,
-    imageUrl: undefined,
-    enterpriseId: "4",
-    categoryId: "4",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    enterprise: {
-      id: "4",
-      name: "Crochet Crafts",
-      description: "Handmade crochet items made with love",
-      ownerId: "126",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  },
-];
-
-const categories: Category[] = [
-  {
-    id: "1",
-    name: "Snacks",
-    description: "Delicious treats to satisfy your cravings"
-  },
-  {
-    id: "2",
-    name: "Drinks",
-    description: "Refreshing beverages for every occasion"
-  },
-  {
-    id: "3",
-    name: "Clothing",
-    description: "Comfortable and stylish apparel"
-  },
-  {
-    id: "4",
-    name: "Crafts",
-    description: "Handmade items created with skill and passion"
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
+  // Fetch real categories from the database
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ['homepage-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*');
+        
+      if (error) throw error;
+      
+      return (data || []).map(category => ({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        imageUrl: category.image_url
+      })) as Category[];
+    },
+    meta: {
+      onError: (error: any) => {
+        console.error("Error loading categories:", error);
+      }
+    }
+  });
+  
+  // Fetch featured products from the database
+  const { data: featuredProducts = [], isLoading: isLoadingProducts } = useQuery({
+    queryKey: ['homepage-featured-products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, enterprises:enterprise_id(*)')
+        .limit(4); // Limit to 4 products for the featured section
+        
+      if (error) throw error;
+      
+      return (data || []).map(product => ({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        quantity: product.quantity,
+        imageUrl: product.image_url,
+        enterpriseId: product.enterprise_id,
+        categoryId: product.category_id,
+        createdAt: product.created_at,
+        updatedAt: product.updated_at,
+        enterprise: {
+          id: product.enterprises.id,
+          name: product.enterprises.name,
+          description: product.enterprises.description,
+          logoUrl: product.enterprises.logo_url,
+          ownerId: product.enterprises.owner_id,
+          createdAt: product.enterprises.created_at,
+          updatedAt: product.enterprises.updated_at
+        }
+      })) as (Product & { enterprise: Enterprise })[];
+    },
+    meta: {
+      onError: (error: any) => {
+        console.error("Error loading featured products:", error);
+      }
+    }
+  });
+
   return (
     <div>
       {/* Hero Section */}
@@ -187,13 +149,28 @@ const Index = () => {
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                enterpriseName={product.enterprise.name}
-              />
-            ))}
+            {isLoadingProducts ? (
+              Array(4).fill(0).map((_, index) => (
+                <Card key={index} className="flex items-center justify-center h-64">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </Card>
+              ))
+            ) : featuredProducts.length === 0 ? (
+              <div className="col-span-4 text-center py-12">
+                <p className="text-muted-foreground">No products available yet</p>
+                <Button asChild className="mt-4">
+                  <Link to="/auth">Login to add products</Link>
+                </Button>
+              </div>
+            ) : (
+              featuredProducts.map(product => (
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  enterpriseName={product.enterprise.name}
+                />
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -204,23 +181,35 @@ const Index = () => {
           <h2 className="text-3xl font-bold text-center mb-12">Product Categories</h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map(category => (
-              <Link key={category.id} to={`/products?category=${category.id}`}>
-                <Card className="h-full card-hover">
-                  <CardContent className="p-6 flex flex-col items-center text-center">
-                    <div className="w-16 h-16 rounded-full bg-academy-blue/10 flex items-center justify-center mb-4">
-                      <span className="text-2xl font-bold text-academy-blue">
-                        {category.name.charAt(0)}
-                      </span>
-                    </div>
-                    <h3 className="font-semibold text-xl mb-2">{category.name}</h3>
-                    <p className="text-muted-foreground text-sm">
-                      {category.description}
-                    </p>
-                  </CardContent>
+            {isLoadingCategories ? (
+              Array(4).fill(0).map((_, index) => (
+                <Card key={index} className="h-48 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </Card>
-              </Link>
-            ))}
+              ))
+            ) : categories.length === 0 ? (
+              <div className="col-span-4 text-center py-12">
+                <p className="text-muted-foreground">No categories available yet</p>
+              </div>
+            ) : (
+              categories.map(category => (
+                <Link key={category.id} to={`/products?category=${category.id}`}>
+                  <Card className="h-full card-hover">
+                    <CardContent className="p-6 flex flex-col items-center text-center">
+                      <div className="w-16 h-16 rounded-full bg-academy-blue/10 flex items-center justify-center mb-4">
+                        <span className="text-2xl font-bold text-academy-blue">
+                          {category.name.charAt(0)}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-xl mb-2">{category.name}</h3>
+                      <p className="text-muted-foreground text-sm">
+                        {category.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </section>

@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface BookingFormProps {
   product: Product;
@@ -20,6 +22,9 @@ export function BookingForm({ product }: BookingFormProps) {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  
+  // Check if the user is trying to book their own product
+  const isOwnProduct = profile?.role === 'enterprise' && profile?.enterpriseId === product.enterpriseId;
   
   const bookingMutation = useMutation({
     mutationFn: async (bookingData: {
@@ -84,9 +89,9 @@ export function BookingForm({ product }: BookingFormProps) {
       return;
     }
     
-    // Check if user is a student
-    if (profile.role !== 'student') {
-      toast.error("Only students can book products");
+    // Prevent enterprise members from booking their own products
+    if (isOwnProduct) {
+      toast.error("You cannot book your own enterprise's products");
       return;
     }
     
@@ -100,6 +105,16 @@ export function BookingForm({ product }: BookingFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {isOwnProduct && (
+        <Alert variant="warning" className="bg-amber-50">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>This is your enterprise's product</AlertTitle>
+          <AlertDescription>
+            You cannot book products from your own enterprise.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div>
         <Label htmlFor="quantity" className="text-base">Quantity</Label>
         <div className="flex items-center mt-2">
@@ -108,7 +123,7 @@ export function BookingForm({ product }: BookingFormProps) {
             variant="outline"
             size="icon"
             onClick={decrementQuantity}
-            disabled={quantity <= 1}
+            disabled={quantity <= 1 || isOwnProduct}
             className="h-10 w-10"
           >
             -
@@ -121,14 +136,14 @@ export function BookingForm({ product }: BookingFormProps) {
             min={1}
             max={product.quantity}
             className="h-10 w-20 mx-2 text-center"
-            disabled={product.quantity === 0}
+            disabled={product.quantity === 0 || isOwnProduct}
           />
           <Button
             type="button"
             variant="outline"
             size="icon"
             onClick={incrementQuantity}
-            disabled={quantity >= product.quantity}
+            disabled={quantity >= product.quantity || isOwnProduct}
             className="h-10 w-10"
           >
             +
@@ -157,9 +172,16 @@ export function BookingForm({ product }: BookingFormProps) {
       <Button 
         type="submit"
         className="w-full btn-primary"
-        disabled={bookingMutation.isPending || product.quantity === 0 || !user}
+        disabled={bookingMutation.isPending || product.quantity === 0 || !user || isOwnProduct}
       >
-        {bookingMutation.isPending ? "Processing..." : "Book Now"}
+        {bookingMutation.isPending ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+            Processing...
+          </>
+        ) : (
+          "Book Now"
+        )}
       </Button>
       
       {!user && (
