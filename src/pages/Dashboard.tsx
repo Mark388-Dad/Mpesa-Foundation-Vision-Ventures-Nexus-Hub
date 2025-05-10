@@ -19,15 +19,19 @@ const Dashboard = () => {
   const queryClient = useQueryClient();
   const { toast: uiToast } = useToast();
   
-  // Redirect if not enterprise user
+  // Loading state
   if (loading) {
     return <div className="academy-container py-16 text-center">Loading...</div>;
   }
   
-  if (!profile || profile.role !== 'enterprise' || !profile.enterpriseId) {
+  // Check if user is authenticated and has enterprise role
+  if (!profile || profile.role !== 'enterprise') {
     toast.error("You don't have permission to access the enterprise dashboard");
     return <Navigate to="/" />;
   }
+
+  // Create a default enterprise ID if none exists
+  const enterpriseId = profile.enterpriseId || user?.id;
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -52,12 +56,12 @@ const Dashboard = () => {
   });
   
   const { data: products = [], isLoading: isLoadingProducts } = useQuery({
-    queryKey: ['enterprise-products', profile.enterpriseId],
+    queryKey: ['enterprise-products', enterpriseId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
         .select('*, categories:category_id(*)')
-        .eq('enterprise_id', profile.enterpriseId);
+        .eq('enterprise_id', enterpriseId);
       
       if (error) throw error;
       
@@ -87,13 +91,13 @@ const Dashboard = () => {
   });
   
   const { data: bookings = [], isLoading: isLoadingBookings } = useQuery({
-    queryKey: ['enterprise-bookings', profile.enterpriseId],
+    queryKey: ['enterprise-bookings', enterpriseId],
     queryFn: async () => {
       // First get the enterprise's product IDs
       const { data: enterpriseProducts } = await supabase
         .from('products')
         .select('id')
-        .eq('enterprise_id', profile.enterpriseId);
+        .eq('enterprise_id', enterpriseId);
       
       if (!enterpriseProducts || enterpriseProducts.length === 0) {
         return [];
@@ -160,7 +164,7 @@ const Dashboard = () => {
       
       if (formData.image) {
         const fileExt = formData.image.name.split('.').pop();
-        const filePath = `${profile!.enterpriseId}/${Date.now()}.${fileExt}`;
+        const filePath = `${enterpriseId}/${Date.now()}.${fileExt}`;
         
         // Upload image
         const { error: uploadError } = await supabase.storage
@@ -186,7 +190,7 @@ const Dashboard = () => {
           price: formData.price,
           quantity: formData.quantity,
           image_url: imageUrl,
-          enterprise_id: profile!.enterpriseId,
+          enterprise_id: enterpriseId,
           category_id: formData.categoryId
         })
         .select()
