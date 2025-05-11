@@ -7,6 +7,7 @@ import { EnterpriseSidebar } from "./sidebars/EnterpriseSidebar";
 import { StaffSidebar } from "./sidebars/StaffSidebar";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   userRole?: UserRole;
@@ -26,7 +27,7 @@ export function AppLayout({ userRole }: AppLayoutProps) {
         {activeRole === 'enterprise' && <EnterpriseSidebar />}
         {activeRole === 'staff' && <StaffSidebar />}
         
-        <main className="flex-1 bg-gray-50">
+        <main className={cn("flex-1 bg-gray-50")}>
           <Outlet />
         </main>
       </div>

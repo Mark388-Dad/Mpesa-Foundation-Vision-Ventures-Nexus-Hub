@@ -1,11 +1,13 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
-import { Package, BarChart3, MessageSquare, Bell, Settings } from "lucide-react";
+import { Package, BarChart3, MessageSquare, Bell, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 
 export const EnterpriseSidebar = () => {
   const { pathname } = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (path: string) => {
     return pathname === path;
@@ -45,27 +47,47 @@ export const EnterpriseSidebar = () => {
   ];
 
   return (
-    <div className="space-y-4 py-4 flex flex-col h-full bg-white text-gray-800">
-      <div className="px-3 py-2">
-        <h2 className="mb-2 px-4 text-lg font-semibold">Enterprise</h2>
+    <div className={cn(
+      "relative flex flex-col h-full bg-white text-gray-800 transition-all duration-300",
+      collapsed ? "w-20" : "w-64"
+    )}>
+      <div className="px-3 py-2 flex flex-col h-full">
+        {!collapsed && (
+          <h2 className="mb-2 px-4 text-lg font-semibold">Enterprise</h2>
+        )}
         <div className="space-y-1">
           {routes.map((route) => (
             <Button
               key={route.href}
               asChild
               variant={isActive(route.href) ? "default" : "ghost"}
-              className={cn("w-full justify-start", 
+              className={cn(
+                "w-full justify-start", 
                 isActive(route.href) ? "bg-gray-100 hover:bg-gray-100" : ""
               )}
             >
-              <Link to={route.href}>
-                <route.icon className={cn("h-5 w-5 mr-3", route.color)} />
-                {route.label}
+              <Link to={route.href} className="flex items-center">
+                <route.icon className={cn("h-5 w-5", route.color, collapsed ? "mx-auto" : "mr-3")} />
+                {!collapsed && <span>{route.label}</span>}
               </Link>
             </Button>
           ))}
         </div>
       </div>
+      
+      {/* Toggle button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute -right-3 top-5 h-6 w-6 rounded-full bg-white border border-gray-200 shadow-md"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        {collapsed ? (
+          <ChevronRight className="h-4 w-4" />
+        ) : (
+          <ChevronLeft className="h-4 w-4" />
+        )}
+      </Button>
     </div>
   );
 };
