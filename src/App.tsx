@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +16,9 @@ import EnterpriseSettings from "./pages/enterprise/EnterpriseSettings";
 import AdminPanel from "./pages/AdminPanel";
 import StudentBookings from "./pages/StudentBookings";
 import StudentDashboard from "./pages/StudentDashboard";
+import StudentReviews from "./pages/student/StudentReviews";
+import StudentNotifications from "./pages/student/StudentNotifications";
+import StudentSupport from "./pages/student/StudentSupport";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -78,6 +80,30 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute userRole="student">
               <StudentBookings />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reviews" 
+          element={
+            <ProtectedRoute userRole="student">
+              <StudentReviews />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/notifications" 
+          element={
+            <ProtectedRoute userRole="student">
+              <StudentNotifications />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/support" 
+          element={
+            <ProtectedRoute userRole="student">
+              <StudentSupport />
             </ProtectedRoute>
           } 
         />

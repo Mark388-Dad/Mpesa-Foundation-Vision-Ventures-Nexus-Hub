@@ -12,7 +12,12 @@ const EnterpriseSettings = () => {
   }
   
   // Check if user is authenticated and has enterprise role
-  if (!profile || profile.role !== 'enterprise') {
+  if (!profile) {
+    toast.error("You need to be logged in to access enterprise settings");
+    return <Navigate to="/auth" />;
+  }
+  
+  if (profile.role !== 'enterprise') {
     toast.error("You don't have permission to access enterprise settings");
     return <Navigate to="/" />;
   }
