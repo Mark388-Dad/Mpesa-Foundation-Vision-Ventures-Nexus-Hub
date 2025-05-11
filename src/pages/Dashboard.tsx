@@ -25,13 +25,23 @@ const Dashboard = () => {
   }
   
   // Check if user is authenticated and has enterprise role
-  if (!profile || profile.role !== 'enterprise') {
+  if (!profile) {
+    toast.error("You need to be logged in to access the enterprise dashboard");
+    return <Navigate to="/auth" />;
+  }
+  
+  if (profile.role !== 'enterprise') {
     toast.error("You don't have permission to access the enterprise dashboard");
     return <Navigate to="/" />;
   }
 
-  // Create a default enterprise ID if none exists
+  // Use the enterprise ID from the profile if available, otherwise use the user ID
   const enterpriseId = profile.enterpriseId || user?.id;
+
+  if (!enterpriseId) {
+    toast.error("Enterprise ID not found. Please contact support.");
+    return <Navigate to="/" />;
+  }
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -159,6 +169,8 @@ const Dashboard = () => {
   // Product mutation
   const addProductMutation = useMutation({
     mutationFn: async (formData: ProductFormData) => {
+      console.log("Adding product for enterprise:", enterpriseId);
+      
       // Check if we need to upload an image first
       let imageUrl = undefined;
       
@@ -166,22 +178,38 @@ const Dashboard = () => {
         const fileExt = formData.image.name.split('.').pop();
         const filePath = `${enterpriseId}/${Date.now()}.${fileExt}`;
         
+        console.log("Uploading image to path:", filePath);
+        
         // Upload image
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError, data } = await supabase.storage
           .from('product-images')
           .upload(filePath, formData.image);
           
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("Image upload error:", uploadError);
+          throw uploadError;
+        }
         
         // Get public URL
-        const { data } = supabase.storage
+        const { data: publicUrlData } = supabase.storage
           .from('product-images')
           .getPublicUrl(filePath);
           
-        imageUrl = data.publicUrl;
+        imageUrl = publicUrlData.publicUrl;
+        console.log("Image URL:", imageUrl);
       }
       
-      // Create product
+      // Create product with the enterprise_id explicitly set
+      console.log("Creating product with data:", {
+        name: formData.name,
+        description: formData.description,
+        price: formData.price,
+        quantity: formData.quantity,
+        image_url: imageUrl,
+        enterprise_id: enterpriseId,
+        category_id: formData.categoryId
+      });
+      
       const { data, error } = await supabase
         .from('products')
         .insert({
@@ -196,7 +224,12 @@ const Dashboard = () => {
         .select()
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error("Product creation error:", error);
+        throw error;
+      }
+      
+      console.log("Product created successfully:", data);
       return data;
     },
     onSuccess: () => {
@@ -208,6 +241,7 @@ const Dashboard = () => {
       setIsDialogOpen(false);
     },
     onError: (error: any) => {
+      console.error("Product mutation error:", error);
       uiToast({
         title: "Error",
         description: `Failed to add product: ${error.message}`,
