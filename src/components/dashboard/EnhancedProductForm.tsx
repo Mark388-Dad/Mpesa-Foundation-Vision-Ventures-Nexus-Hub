@@ -100,10 +100,15 @@ export function EnhancedProductForm({ categories, onSubmit, isSubmitting }: Enha
 
   const onFormSubmit = async (data: z.infer<typeof productSchema>) => {
     try {
-      await onSubmit({
-        ...data,
+      const formData: ProductFormData = {
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        quantity: data.quantity,
+        categoryId: data.categoryId,
         ...files
-      });
+      };
+      await onSubmit(formData);
       reset();
       setFiles({});
     } catch (error) {

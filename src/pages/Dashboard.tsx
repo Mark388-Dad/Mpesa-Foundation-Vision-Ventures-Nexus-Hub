@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ProductForm } from "@/components/dashboard/ProductForm";
+import { EnhancedProductForm } from "@/components/dashboard/EnhancedProductForm";
 import { BookingsList } from "@/components/dashboard/BookingsList";
 import { Product, ProductFormData, Category, Booking, User } from "@/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -115,13 +115,13 @@ const Dashboard = () => {
       
       const productIds = enterpriseProducts.map(p => p.id);
       
-      // Then get all bookings for those products
+      // Then get all bookings for those products with proper joins
       const { data, error } = await supabase
         .from('bookings')
         .select(`
           *,
           products:product_id(*),
-          students:student_id(*)
+          profiles:student_id(*)
         `)
         .in('product_id', productIds);
       
@@ -149,13 +149,13 @@ const Dashboard = () => {
           updatedAt: booking.products.updated_at
         },
         student: {
-          id: booking.students.id,
-          email: booking.students.email,
-          username: booking.students.username,
-          admissionNumber: booking.students.admission_number,
-          role: booking.students.role,
-          createdAt: booking.students.created_at,
-          updatedAt: booking.students.updated_at
+          id: booking.profiles.id,
+          email: booking.profiles.email,
+          username: booking.profiles.username,
+          admissionNumber: booking.profiles.admission_number,
+          role: booking.profiles.role,
+          createdAt: booking.profiles.created_at,
+          updatedAt: booking.profiles.updated_at
         }
       })) as (Booking & { product: Product; student: User })[];
     },
@@ -171,44 +171,79 @@ const Dashboard = () => {
     mutationFn: async (formData: ProductFormData) => {
       console.log("Adding product for enterprise:", enterpriseId);
       
-      // Check if we need to upload an image first
+      // Check if we need to upload files first
       let imageUrl = undefined;
+      let videoUrl = undefined;
+      let fileUrl = undefined;
+      let stickerUrl = undefined;
       
       if (formData.image) {
         const fileExt = formData.image.name.split('.').pop();
-        const filePath = `${enterpriseId}/${Date.now()}.${fileExt}`;
+        const filePath = `${enterpriseId}/${Date.now()}-image.${fileExt}`;
         
-        console.log("Uploading image to path:", filePath);
-        
-        // Upload image
         const { error: uploadError, data } = await supabase.storage
           .from('product-images')
           .upload(filePath, formData.image);
           
-        if (uploadError) {
-          console.error("Image upload error:", uploadError);
-          throw uploadError;
-        }
+        if (uploadError) throw uploadError;
         
-        // Get public URL
         const { data: publicUrlData } = supabase.storage
           .from('product-images')
           .getPublicUrl(filePath);
           
         imageUrl = publicUrlData.publicUrl;
-        console.log("Image URL:", imageUrl);
       }
       
-      // Create product with the enterprise_id explicitly set
-      console.log("Creating product with data:", {
-        name: formData.name,
-        description: formData.description,
-        price: formData.price,
-        quantity: formData.quantity,
-        image_url: imageUrl,
-        enterprise_id: enterpriseId,
-        category_id: formData.categoryId
-      });
+      if (formData.video) {
+        const fileExt = formData.video.name.split('.').pop();
+        const filePath = `${enterpriseId}/${Date.now()}-video.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('product-videos')
+          .upload(filePath, formData.video);
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: publicUrlData } = supabase.storage
+          .from('product-videos')
+          .getPublicUrl(filePath);
+          
+        videoUrl = publicUrlData.publicUrl;
+      }
+      
+      if (formData.file) {
+        const fileExt = formData.file.name.split('.').pop();
+        const filePath = `${enterpriseId}/${Date.now()}-file.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('product-files')
+          .upload(filePath, formData.file);
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: publicUrlData } = supabase.storage
+          .from('product-files')
+          .getPublicUrl(filePath);
+          
+        fileUrl = publicUrlData.publicUrl;
+      }
+      
+      if (formData.sticker) {
+        const fileExt = formData.sticker.name.split('.').pop();
+        const filePath = `${enterpriseId}/${Date.now()}-sticker.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('product-stickers')
+          .upload(filePath, formData.sticker);
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: publicUrlData } = supabase.storage
+          .from('product-stickers')
+          .getPublicUrl(filePath);
+          
+        stickerUrl = publicUrlData.publicUrl;
+      }
       
       const { data, error } = await supabase
         .from('products')
@@ -218,18 +253,16 @@ const Dashboard = () => {
           price: formData.price,
           quantity: formData.quantity,
           image_url: imageUrl,
+          video_url: videoUrl,
+          file_url: fileUrl,
+          sticker_url: stickerUrl,
           enterprise_id: enterpriseId,
           category_id: formData.categoryId
         })
         .select()
         .single();
         
-      if (error) {
-        console.error("Product creation error:", error);
-        throw error;
-      }
-      
-      console.log("Product created successfully:", data);
+      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -384,11 +417,11 @@ const Dashboard = () => {
               <DialogTrigger asChild>
                 <Button className="btn-primary">Add New Product</Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
+              <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add New Product</DialogTitle>
                 </DialogHeader>
-                <ProductForm
+                <EnhancedProductForm
                   categories={categories}
                   onSubmit={handleAddProduct}
                   isSubmitting={addProductMutation.isPending}

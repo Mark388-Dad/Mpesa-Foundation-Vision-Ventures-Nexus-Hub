@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EnterpriseCategoriesGrid } from "@/components/categories/EnterpriseCategoriesGrid";
@@ -14,7 +13,16 @@ const Index = () => {
         .order('name');
         
       if (error) throw error;
-      return data as EnterpriseCategory[];
+      return data.map((category: any) => ({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        icon: category.icon,
+        color: category.color,
+        imageUrl: category.image_url,
+        createdAt: category.created_at,
+        updatedAt: category.updated_at
+      })) as EnterpriseCategory[];
     }
   });
 

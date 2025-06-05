@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -24,7 +23,16 @@ const CategoryProducts = () => {
         .single();
         
       if (error) throw error;
-      return data as EnterpriseCategory;
+      return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        icon: data.icon,
+        color: data.color,
+        imageUrl: data.image_url,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      } as EnterpriseCategory;
     }
   });
 
@@ -37,7 +45,16 @@ const CategoryProducts = () => {
         .eq('category_id', categoryId);
         
       if (error) throw error;
-      return data as Enterprise[];
+      return data.map((enterprise: any) => ({
+        id: enterprise.id,
+        name: enterprise.name,
+        description: enterprise.description,
+        logoUrl: enterprise.logo_url,
+        ownerId: enterprise.owner_id,
+        categoryId: enterprise.category_id,
+        createdAt: enterprise.created_at,
+        updatedAt: enterprise.updated_at
+      })) as Enterprise[];
     }
   });
 
