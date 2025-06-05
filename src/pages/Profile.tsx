@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -55,7 +55,7 @@ const Profile = () => {
   });
 
   // Initialize form data
-  useState(() => {
+  useEffect(() => {
     setFormData({
       username: profile.username || '',
       fullName: profile.fullName || '',

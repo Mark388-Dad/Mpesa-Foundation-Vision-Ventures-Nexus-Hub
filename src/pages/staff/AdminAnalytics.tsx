@@ -30,20 +30,21 @@ const AdminAnalytics = () => {
         .from('enterprises')
         .select('*, enterprise_categories(name), profiles!enterprises_owner_id_fkey(*)');
 
-      // Get products data
+      // Get products data with proper joins
       const { data: products } = await supabase
         .from('products')
-        .select('*, enterprise_categories(name)');
+        .select('*, categories(name)');
 
-      // Get bookings data
+      // Get bookings data with proper joins
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('*, products(price, enterprise_categories(name))');
+        .select('*, products(price, categories(name))');
 
       // Get notifications data
       const { data: notifications } = await supabase
         .from('notifications')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
 
       return {
         enterprises: enterprises || [],
@@ -80,7 +81,7 @@ const AdminAnalytics = () => {
 
   // Category distribution
   const categoryData = analytics.products.reduce((acc: any, product) => {
-    const categoryName = product.enterprise_categories?.name || 'Uncategorized';
+    const categoryName = product.categories?.name || 'Uncategorized';
     acc[categoryName] = (acc[categoryName] || 0) + 1;
     return acc;
   }, {});
@@ -104,7 +105,7 @@ const AdminAnalytics = () => {
 
   // Revenue by category
   const revenueByCategory = analytics.bookings.reduce((acc: any, booking) => {
-    const categoryName = booking.products?.enterprise_categories?.name || 'Uncategorized';
+    const categoryName = booking.products?.categories?.name || 'Uncategorized';
     const revenue = (booking.products?.price || 0) * booking.quantity;
     acc[categoryName] = (acc[categoryName] || 0) + revenue;
     return acc;

@@ -1,360 +1,202 @@
 
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { EnhancedProductForm } from "@/components/dashboard/EnhancedProductForm";
-import { BookingsList } from "@/components/dashboard/BookingsList";
-import { Product, ProductFormData, EnterpriseCategory, Booking, User } from "@/types";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { EnhancedProductForm } from "@/components/dashboard/EnhancedProductForm";
+import { 
+  Store, 
+  Package, 
+  ShoppingCart, 
+  TrendingUp, 
+  Users, 
+  Eye,
+  Plus,
+  Calendar,
+  MapPin
+} from "lucide-react";
 
 const Dashboard = () => {
-  const { user, profile, loading } = useAuth();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const { toast: uiToast } = useToast();
+  const { profile, loading } = useAuth();
+  const [showProductForm, setShowProductForm] = useState(false);
   
   // Loading state
   if (loading) {
     return <div className="academy-container py-16 text-center">Loading...</div>;
   }
   
-  // Check if user is authenticated and has enterprise role
+  // Check if user is authenticated
   if (!profile) {
-    toast.error("You need to be logged in to access the enterprise dashboard");
     return <Navigate to="/auth" />;
   }
-  
-  if (profile.role !== 'enterprise') {
-    toast.error("You don't have permission to access the enterprise dashboard");
-    return <Navigate to="/" />;
-  }
 
-  // Use the enterprise ID from the profile if available, otherwise use the user ID
-  const enterpriseId = profile.enterpriseId || user?.id;
+  // Get enterprise data for enterprise users
+  const { data: enterprise } = useQuery({
+    queryKey: ['enterprise', profile.enterpriseId],
+    queryFn: async () => {
+      if (!profile.enterpriseId) return null;
+      
+      const { data, error } = await supabase
+        .from('enterprises')
+        .select(`
+          *,
+          enterprise_categories!inner(*)
+        `)
+        .eq('id', profile.enterpriseId)
+        .single();
+        
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile.enterpriseId && profile.role === 'enterprise'
+  });
 
-  if (!enterpriseId) {
-    toast.error("Enterprise ID not found. Please contact support.");
-    return <Navigate to="/" />;
-  }
-
-  const { data: categories = [] } = useQuery({
+  // Get enterprise categories
+  const { data: categories } = useQuery({
     queryKey: ['enterprise-categories'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('enterprise_categories')
-        .select('*');
-      
+        .select('*')
+        .order('name');
+        
       if (error) throw error;
-      
-      return (data || []).map(category => ({
-        id: category.id,
-        name: category.name,
-        description: category.description,
-        icon: category.icon,
-        color: category.color,
-        imageUrl: category.image_url,
-        createdAt: category.created_at,
-        updatedAt: category.updated_at
-      })) as EnterpriseCategory[];
-    },
-    meta: {
-      onError: (error: any) => {
-        toast.error(`Error loading categories: ${error.message}`);
-      }
+      return data;
     }
   });
-  
-  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
-    queryKey: ['enterprise-products', enterpriseId],
+
+  // Get products for enterprise users
+  const { data: products } = useQuery({
+    queryKey: ['enterprise-products', profile.enterpriseId],
     queryFn: async () => {
+      if (!profile.enterpriseId) return [];
+      
       const { data, error } = await supabase
         .from('products')
-        .select('*, enterprise_categories:category_id(*)')
-        .eq('enterprise_id', enterpriseId);
-      
+        .select(`
+          *,
+          categories(name)
+        `)
+        .eq('enterprise_id', profile.enterpriseId)
+        .order('created_at', { ascending: false });
+        
       if (error) throw error;
-      
-      return (data || []).map(product => ({
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        quantity: product.quantity,
-        imageUrl: product.image_url,
-        videoUrl: product.video_url,
-        fileUrl: product.file_url,
-        stickerUrl: product.sticker_url,
-        enterpriseId: product.enterprise_id,
-        categoryId: product.category_id,
-        createdAt: product.created_at,
-        updatedAt: product.updated_at,
-        category: product.enterprise_categories ? {
-          id: product.enterprise_categories.id,
-          name: product.enterprise_categories.name,
-          description: product.enterprise_categories.description,
-          icon: product.enterprise_categories.icon,
-          color: product.enterprise_categories.color,
-          imageUrl: product.enterprise_categories.image_url,
-          createdAt: product.enterprise_categories.created_at,
-          updatedAt: product.enterprise_categories.updated_at
-        } : undefined
-      })) as (Product & { category?: EnterpriseCategory })[];
+      return data || [];
     },
-    meta: {
-      onError: (error: any) => {
-        toast.error(`Error loading products: ${error.message}`);
-      }
-    }
+    enabled: !!profile.enterpriseId && profile.role === 'enterprise'
   });
-  
-  const { data: bookings = [], isLoading: isLoadingBookings } = useQuery({
-    queryKey: ['enterprise-bookings', enterpriseId],
+
+  // Get bookings for enterprise users
+  const { data: bookings } = useQuery({
+    queryKey: ['enterprise-bookings', profile.enterpriseId],
     queryFn: async () => {
-      // First get the enterprise's product IDs
-      const { data: enterpriseProducts } = await supabase
-        .from('products')
-        .select('id')
-        .eq('enterprise_id', enterpriseId);
+      if (!profile.enterpriseId) return [];
       
-      if (!enterpriseProducts || enterpriseProducts.length === 0) {
-        return [];
-      }
-      
-      const productIds = enterpriseProducts.map(p => p.id);
-      
-      // Then get all bookings for those products with proper joins
       const { data, error } = await supabase
         .from('bookings')
         .select(`
           *,
-          products:product_id(*),
-          profiles:student_id(*)
+          products!inner(
+            name,
+            price,
+            enterprise_id
+          )
         `)
-        .in('product_id', productIds);
-      
+        .eq('products.enterprise_id', profile.enterpriseId)
+        .order('created_at', { ascending: false });
+        
       if (error) throw error;
-      
-      return (data || []).map(booking => ({
-        id: booking.id,
-        productId: booking.product_id,
-        studentId: booking.student_id,
-        quantity: booking.quantity,
-        status: booking.status,
-        pickupCode: booking.pickup_code,
-        createdAt: booking.created_at,
-        updatedAt: booking.updated_at,
-        product: {
-          id: booking.products.id,
-          name: booking.products.name,
-          description: booking.products.description,
-          price: booking.products.price,
-          quantity: booking.products.quantity,
-          imageUrl: booking.products.image_url,
-          videoUrl: booking.products.video_url,
-          fileUrl: booking.products.file_url,
-          stickerUrl: booking.products.sticker_url,
-          enterpriseId: booking.products.enterprise_id,
-          categoryId: booking.products.category_id,
-          createdAt: booking.products.created_at,
-          updatedAt: booking.products.updated_at
-        },
-        student: {
-          id: booking.profiles.id,
-          email: booking.profiles.email,
-          username: booking.profiles.username,
-          fullName: booking.profiles.full_name,
-          admissionNumber: booking.profiles.admission_number,
-          phoneNumber: booking.profiles.phone_number,
-          role: booking.profiles.role,
-          enterpriseId: booking.profiles.enterprise_id,
-          createdAt: booking.profiles.created_at,
-          updatedAt: booking.profiles.updated_at
-        }
-      })) as (Booking & { product: Product; student: User })[];
+      return data || [];
     },
-    meta: {
-      onError: (error: any) => {
-        toast.error(`Error loading bookings: ${error.message}`);
-      }
-    }
+    enabled: !!profile.enterpriseId && profile.role === 'enterprise'
   });
-  
-  // Product mutation
-  const addProductMutation = useMutation({
-    mutationFn: async (formData: ProductFormData) => {
-      console.log("Adding product for enterprise:", enterpriseId);
-      
-      // Check if we need to upload files first
-      let imageUrl = undefined;
-      let videoUrl = undefined;
-      let fileUrl = undefined;
-      let stickerUrl = undefined;
-      
-      const uploadFile = async (file: File, bucket: string) => {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-        const filePath = `${enterpriseId}/${fileName}`;
-        
-        const { error: uploadError, data } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, file);
-          
-        if (uploadError) {
-          console.error(`${bucket} upload error:`, uploadError);
-          throw uploadError;
-        }
-        
-        // Get the public URL for the uploaded file
-        const { data: { publicUrl } } = supabase.storage
-          .from(bucket)
-          .getPublicUrl(filePath);
-          
-        return publicUrl;
-      };
 
-      if (formData.image) {
-        imageUrl = await uploadFile(formData.image, 'product-images');
-      }
-      
-      if (formData.video) {
-        videoUrl = await uploadFile(formData.video, 'product-videos');
-      }
-      
-      if (formData.file) {
-        fileUrl = await uploadFile(formData.file, 'product-files');
-      }
-      
-      if (formData.sticker) {
-        stickerUrl = await uploadFile(formData.sticker, 'product-stickers');
-      }
-      
-      const { data, error } = await supabase
-        .from('products')
-        .insert({
-          name: formData.name,
-          description: formData.description,
-          price: formData.price,
-          quantity: formData.quantity,
-          image_url: imageUrl,
-          video_url: videoUrl,
-          file_url: fileUrl,
-          sticker_url: stickerUrl,
-          enterprise_id: enterpriseId,
-          category_id: formData.categoryId
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      uiToast({
-        title: "Product Added",
-        description: "Your product has been added successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['enterprise-products'] });
-      setIsDialogOpen(false);
-    },
-    onError: (error: any) => {
-      console.error("Product mutation error:", error);
-      uiToast({
-        title: "Error",
-        description: `Failed to add product: ${error.message}`,
-        variant: "destructive",
-      });
-    }
-  });
-  
-  // Booking status change mutation
-  const updateBookingStatusMutation = useMutation({
-    mutationFn: async ({ bookingId, status }: { bookingId: string, status: Booking["status"] }) => {
-      // Generate a pickup code if confirming booking
-      const pickupCode = status === 'confirmed' 
-        ? Math.random().toString(36).substring(2, 8).toUpperCase() 
-        : undefined;
-        
-      const updates = {
-        status,
-        ...(pickupCode && { pickup_code: pickupCode }),
-        updated_at: new Date().toISOString()
-      };
-      
+  // Get student bookings
+  const { data: studentBookings } = useQuery({
+    queryKey: ['student-bookings', profile.id],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .update(updates)
-        .eq('id', bookingId)
-        .select()
-        .single();
+        .select(`
+          *,
+          products(
+            name,
+            price,
+            image_url,
+            enterprises(name)
+          )
+        `)
+        .eq('student_id', profile.id)
+        .order('created_at', { ascending: false });
         
       if (error) throw error;
-      return data;
+      return data || [];
     },
-    onSuccess: () => {
-      uiToast({
-        title: "Booking Updated",
-        description: "The booking status has been updated.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['enterprise-bookings'] });
-    },
-    onError: (error: any) => {
-      uiToast({
-        title: "Error",
-        description: `Failed to update booking: ${error.message}`,
-        variant: "destructive",
-      });
-    }
+    enabled: profile.role === 'student'
   });
-  
-  const handleAddProduct = async (formData: ProductFormData): Promise<void> => {
-    return new Promise<void>((resolve, reject) => {
-      addProductMutation.mutate(formData, {
-        onSuccess: () => {
-          resolve();
-        },
-        onError: (error) => {
-          reject(error);
-        }
-      });
-    });
+
+  const handleProductSubmit = async (productData: any) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .insert({
+          name: productData.name,
+          description: productData.description,
+          price: productData.price,
+          quantity: productData.quantity,
+          category_id: productData.categoryId,
+          enterprise_id: profile.enterpriseId,
+          image_url: productData.imageUrl,
+          video_url: productData.videoUrl,
+          file_url: productData.fileUrl,
+          sticker_url: productData.stickerUrl
+        });
+
+      if (error) throw error;
+      
+      toast.success("Product created successfully!");
+      setShowProductForm(false);
+    } catch (error: any) {
+      toast.error(`Failed to create product: ${error.message}`);
+    }
   };
-  
-  const handleBookingStatusChange = (bookingId: string, status: Booking["status"]) => {
-    updateBookingStatusMutation.mutate({ bookingId, status });
-  };
-  
-  // Stats calculation
-  const totalProducts = products.length;
-  const totalBookings = bookings.length;
-  const pendingBookings = bookings.filter(b => b.status === "pending").length;
-  const completedBookings = bookings.filter(b => b.status === "completed").length;
-  const totalInventory = products.reduce((sum, product) => sum + product.quantity, 0);
-  
-  return (
-    <div className="py-8">
-      <div className="academy-container">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Enterprise Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your products and bookings
-          </p>
+
+  // Render different dashboards based on role
+  if (profile.role === 'enterprise') {
+    const totalProducts = products?.length || 0;
+    const totalBookings = bookings?.length || 0;
+    const totalRevenue = bookings?.reduce((sum, booking) => {
+      return sum + (booking.products?.price || 0) * booking.quantity;
+    }, 0) || 0;
+
+    return (
+      <div className="academy-container py-8">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Enterprise Dashboard</h1>
+            {enterprise && (
+              <p className="text-muted-foreground">
+                {enterprise.name} - {enterprise.enterprise_categories?.name}
+              </p>
+            )}
+          </div>
+          <Button onClick={() => setShowProductForm(true)} className="btn-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Product
+          </Button>
         </div>
-        
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Products
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalProducts}</div>
@@ -362,166 +204,255 @@ const Dashboard = () => {
           </Card>
           
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Inventory
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalInventory} items</div>
+              <div className="text-2xl font-bold">{totalBookings}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending Bookings
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pendingBookings}</div>
+              <div className="text-2xl font-bold text-green-600">KES {totalRevenue.toLocaleString()}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Completed Bookings
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Category</CardTitle>
+              <Store className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{completedBookings}</div>
+              <div className="flex items-center">
+                <span className="text-lg mr-2">{enterprise?.enterprise_categories?.icon}</span>
+                <span className="font-medium">{enterprise?.enterprise_categories?.name}</span>
+              </div>
             </CardContent>
           </Card>
         </div>
-        
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="products">
-          <div className="flex justify-between items-center mb-6">
-            <TabsList>
-              <TabsTrigger value="products">Products</TabsTrigger>
-              <TabsTrigger value="bookings">Bookings</TabsTrigger>
-            </TabsList>
-            
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="btn-primary">Add New Product</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Add New Product</DialogTitle>
-                </DialogHeader>
-                <EnhancedProductForm
-                  categories={categories}
-                  onSubmit={handleAddProduct}
-                  isSubmitting={addProductMutation.isPending}
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
-          
-          <TabsContent value="products">
-            <Card>
-              <CardContent className="p-6">
-                {isLoadingProducts ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Loading products...</p>
+
+        {/* Recent Products and Bookings */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Products</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {products?.slice(0, 5).map((product) => (
+                  <div key={product.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        KES {product.price} • Qty: {product.quantity}
+                      </p>
+                    </div>
+                    <Badge variant="outline">
+                      {product.categories?.name}
+                    </Badge>
                   </div>
-                ) : products.length === 0 ? (
-                  <div className="text-center py-8">
-                    <h3 className="text-lg font-medium mb-2">No products yet</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Add your first product to start receiving bookings
-                    </p>
-                    <Button 
-                      onClick={() => setIsDialogOpen(true)}
-                      className="btn-primary"
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Bookings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {bookings?.slice(0, 5).map((booking) => (
+                  <div key={booking.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{booking.products?.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Qty: {booking.quantity} • {new Date(booking.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Badge 
+                      variant={booking.status === 'confirmed' ? 'default' : 'secondary'}
                     >
-                      Add Product
-                    </Button>
+                      {booking.status}
+                    </Badge>
                   </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="py-3 px-4 text-left">Product</th>
-                          <th className="py-3 px-4 text-left">Category</th>
-                          <th className="py-3 px-4 text-right">Price</th>
-                          <th className="py-3 px-4 text-right">Quantity</th>
-                          <th className="py-3 px-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {products.map(product => (
-                          <tr key={product.id} className="border-b">
-                            <td className="py-4 px-4">
-                              <div className="flex items-center">
-                                <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center mr-3">
-                                  {product.imageUrl ? (
-                                    <img 
-                                      src={product.imageUrl} 
-                                      alt={product.name}
-                                      className="w-full h-full object-cover rounded"
-                                    />
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground">
-                                      No img
-                                    </span>
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="font-medium">{product.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    ID: {product.id.slice(0, 8)}...
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-4 px-4">
-                              {product.category?.name || "Unknown"}
-                            </td>
-                            <td className="py-4 px-4 text-right">
-                              KES {product.price}
-                            </td>
-                            <td className="py-4 px-4 text-right">
-                              <span className={`${product.quantity <= 5 ? "text-amber-500" : "text-academy-green"}`}>
-                                {product.quantity}
-                              </span>
-                            </td>
-                            <td className="py-4 px-4 text-right">
-                              <div className="flex space-x-2 justify-end">
-                                <Button size="sm" variant="outline">
-                                  Edit
-                                </Button>
-                                <Button size="sm" variant="outline" className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground">
-                                  Delete
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="bookings">
-            <Card>
-              <CardContent className="p-6">
-                <BookingsList
-                  bookings={bookings}
-                  showActions={true}
-                  onStatusChange={handleBookingStatusChange}
-                  isLoading={isLoadingBookings}
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Product Form Modal */}
+        {showProductForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Add New Product</h2>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowProductForm(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <EnhancedProductForm 
+                  onSubmit={handleProductSubmit}
+                  categories={categories || []}
                 />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (profile.role === 'student') {
+    const totalBookings = studentBookings?.length || 0;
+    const pendingBookings = studentBookings?.filter(b => b.status === 'pending').length || 0;
+    const completedBookings = studentBookings?.filter(b => b.status === 'completed').length || 0;
+
+    return (
+      <div className="academy-container py-8">
+        <h1 className="text-2xl font-bold mb-6">Student Dashboard</h1>
+        
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalBookings}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-600">{pendingBookings}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{completedBookings}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Bookings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Bookings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {studentBookings?.slice(0, 5).map((booking) => (
+                <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    {booking.products?.image_url && (
+                      <img 
+                        src={booking.products.image_url} 
+                        alt={booking.products.name}
+                        className="w-12 h-12 object-cover rounded"
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium">{booking.products?.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {booking.products?.enterprises?.name} • Qty: {booking.quantity}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(booking.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge 
+                    variant={
+                      booking.status === 'confirmed' ? 'default' : 
+                      booking.status === 'completed' ? 'secondary' :
+                      booking.status === 'cancelled' ? 'destructive' : 'outline'
+                    }
+                  >
+                    {booking.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Staff Dashboard
+  return (
+    <div className="academy-container py-8">
+      <h1 className="text-2xl font-bold mb-6">Staff Dashboard</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Enterprises</CardTitle>
+            <Store className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">12</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">248</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">156</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">89</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="text-center py-16">
+        <h3 className="text-lg font-medium mb-2">Welcome to the Staff Dashboard</h3>
+        <p className="text-muted-foreground mb-4">
+          Use the navigation menu to access analytics, manage products, communications, and more.
+        </p>
       </div>
     </div>
   );
