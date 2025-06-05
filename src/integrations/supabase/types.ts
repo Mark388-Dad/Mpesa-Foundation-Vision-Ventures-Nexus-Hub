@@ -11,9 +11,11 @@ export type Database = {
     Tables: {
       bookings: {
         Row: {
+          cancellation_reason: string | null
           created_at: string | null
           id: string
           pickup_code: string | null
+          pickup_time: string | null
           product_id: string
           quantity: number
           status: string
@@ -21,19 +23,23 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          cancellation_reason?: string | null
           created_at?: string | null
           id?: string
           pickup_code?: string | null
+          pickup_time?: string | null
           product_id: string
           quantity: number
-          status: string
+          status?: string
           student_id: string
           updated_at?: string | null
         }
         Update: {
+          cancellation_reason?: string | null
           created_at?: string | null
           id?: string
           pickup_code?: string | null
+          pickup_time?: string | null
           product_id?: string
           quantity?: number
           status?: string
@@ -46,13 +52,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bookings_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -84,8 +83,42 @@ export type Database = {
         }
         Relationships: []
       }
+      enterprise_categories: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          image_url: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       enterprises: {
         Row: {
+          category_id: string | null
           created_at: string | null
           description: string
           id: string
@@ -95,6 +128,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          category_id?: string | null
           created_at?: string | null
           description: string
           id?: string
@@ -104,6 +138,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          category_id?: string | null
           created_at?: string | null
           description?: string
           id?: string
@@ -112,44 +147,164 @@ export type Database = {
           owner_id?: string | null
           updated_at?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "enterprises_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "enterprise_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_points: {
+        Row: {
+          created_at: string | null
+          enterprise_id: string
+          id: string
+          points: number
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          enterprise_id: string
+          id?: string
+          points?: number
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          enterprise_id?: string
+          id?: string
+          points?: number
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_points_enterprise_id_fkey"
+            columns: ["enterprise_id"]
+            isOneToOne: false
+            referencedRelation: "enterprises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          read: boolean | null
+          related_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          read?: boolean | null
+          related_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          related_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
         Relationships: []
+      }
+      order_codes: {
+        Row: {
+          booking_id: string
+          code: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          used: boolean | null
+        }
+        Insert: {
+          booking_id: string
+          code: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          used?: boolean | null
+        }
+        Update: {
+          booking_id?: string
+          code?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          used?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_codes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
           category_id: string
           created_at: string | null
-          description: string
+          description: string | null
           enterprise_id: string
+          file_url: string | null
           id: string
           image_url: string | null
           name: string
           price: number
           quantity: number
+          sticker_url: string | null
           updated_at: string | null
+          video_url: string | null
         }
         Insert: {
           category_id: string
           created_at?: string | null
-          description: string
+          description?: string | null
           enterprise_id: string
+          file_url?: string | null
           id?: string
           image_url?: string | null
           name: string
           price: number
-          quantity: number
+          quantity?: number
+          sticker_url?: string | null
           updated_at?: string | null
+          video_url?: string | null
         }
         Update: {
           category_id?: string
           created_at?: string | null
-          description?: string
+          description?: string | null
           enterprise_id?: string
+          file_url?: string | null
           id?: string
           image_url?: string | null
           name?: string
           price?: number
           quantity?: number
+          sticker_url?: string | null
           updated_at?: string | null
+          video_url?: string | null
         }
         Relationships: [
           {
@@ -211,6 +366,93 @@ export type Database = {
             columns: ["enterprise_id"]
             isOneToOne: false
             referencedRelation: "enterprises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          booking_id: string
+          comment: string | null
+          created_at: string | null
+          enterprise_id: string
+          id: string
+          product_id: string
+          rating: number
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          comment?: string | null
+          created_at?: string | null
+          enterprise_id: string
+          id?: string
+          product_id: string
+          rating: number
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          comment?: string | null
+          created_at?: string | null
+          enterprise_id?: string
+          id?: string
+          product_id?: string
+          rating?: number
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_enterprise_id_fkey"
+            columns: ["enterprise_id"]
+            isOneToOne: false
+            referencedRelation: "enterprises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wishlists: {
+        Row: {
+          created_at: string | null
+          id: string
+          product_id: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          product_id: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          product_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wishlists_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]

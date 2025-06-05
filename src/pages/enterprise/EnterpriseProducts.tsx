@@ -6,11 +6,11 @@ import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, Plus, Edit, Trash2 } from "lucide-react";
+import { Package, Plus, Edit, Trash2, Video, FileText, Sticker, Download } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Drawer, DrawerClose, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
-import { ProductForm } from "@/components/dashboard/ProductForm";
+import { EnhancedProductForm } from "@/components/dashboard/EnhancedProductForm";
 import { ProductFormData } from "@/types";
 
 const EnterpriseProducts = () => {
@@ -71,34 +71,52 @@ const EnterpriseProducts = () => {
     }
   });
 
-  // Add product mutation
+  // Add product mutation with enhanced file upload support
   const addProductMutation = useMutation({
     mutationFn: async (productData: ProductFormData) => {
       setIsSubmitting(true);
       console.log("Submitting product with enterprise_id:", enterpriseId);
       
-      // Handle image upload if there's an image
-      let imageUrl = null;
-      if (productData.image) {
-        const fileExt = productData.image.name.split('.').pop();
+      // Handle multiple file uploads
+      const uploadFile = async (file: File, bucket: string) => {
+        const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${enterpriseId}/${fileName}`;
         
         const { error: uploadError, data } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, productData.image);
+          .from(bucket)
+          .upload(filePath, file);
           
         if (uploadError) {
-          console.error("Image upload error:", uploadError);
+          console.error(`${bucket} upload error:`, uploadError);
           throw uploadError;
         }
         
-        // Get the public URL for the uploaded image
+        // Get the public URL for the uploaded file
         const { data: { publicUrl } } = supabase.storage
-          .from('product-images')
+          .from(bucket)
           .getPublicUrl(filePath);
           
-        imageUrl = publicUrl;
+        return publicUrl;
+      };
+
+      // Upload files to appropriate buckets
+      let imageUrl = null;
+      let videoUrl = null;
+      let fileUrl = null;
+      let stickerUrl = null;
+
+      if (productData.image) {
+        imageUrl = await uploadFile(productData.image, 'product-images');
+      }
+      if (productData.video) {
+        videoUrl = await uploadFile(productData.video, 'product-videos');
+      }
+      if (productData.file) {
+        fileUrl = await uploadFile(productData.file, 'product-files');
+      }
+      if (productData.sticker) {
+        stickerUrl = await uploadFile(productData.sticker, 'product-stickers');
       }
       
       // Insert product data into the database
@@ -111,7 +129,10 @@ const EnterpriseProducts = () => {
           quantity: productData.quantity,
           category_id: productData.categoryId,
           enterprise_id: enterpriseId,
-          image_url: imageUrl
+          image_url: imageUrl,
+          video_url: videoUrl,
+          file_url: fileUrl,
+          sticker_url: stickerUrl
         }])
         .select();
         
@@ -155,12 +176,12 @@ const EnterpriseProducts = () => {
               <Plus className="h-4 w-4 mr-2" /> Add New Product
             </Button>
           </DrawerTrigger>
-          <DrawerContent>
+          <DrawerContent className="max-h-[90vh] overflow-y-auto">
             <DrawerHeader>
               <DrawerTitle>Add New Product</DrawerTitle>
             </DrawerHeader>
-            <div className="px-4 py-2">
-              <ProductForm 
+            <div className="px-4 py-2 max-w-4xl mx-auto w-full">
+              <EnhancedProductForm 
                 categories={categories} 
                 onSubmit={handleSubmitProduct}
                 isSubmitting={isSubmitting}
@@ -200,15 +221,46 @@ const EnterpriseProducts = () => {
                     <TableHead className="text-left">Name</TableHead>
                     <TableHead className="text-right">Price</TableHead>
                     <TableHead className="text-right">Stock</TableHead>
+                    <TableHead className="text-center">Media</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {products.map((product) => (
                     <TableRow key={product.id}>
-                      <TableCell className="text-left">{product.name}</TableCell>
+                      <TableCell className="text-left">
+                        <div className="flex items-center">
+                          <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center mr-3">
+                            {product.image_url ? (
+                              <img 
+                                src={product.image_url} 
+                                alt={product.name} 
+                                className="h-10 w-10 object-cover rounded"
+                              />
+                            ) : (
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium">{product.name}</p>
+                            <p className="text-sm text-muted-foreground line-clamp-1">
+                              {product.description}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">KES {product.price}</TableCell>
                       <TableCell className="text-right">{product.quantity}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center gap-1">
+                          {product.video_url && <Video className="h-4 w-4 text-blue-500" />}
+                          {product.file_url && <FileText className="h-4 w-4 text-green-500" />}
+                          {product.sticker_url && <Sticker className="h-4 w-4 text-purple-500" />}
+                          {!product.video_url && !product.file_url && !product.sticker_url && (
+                            <span className="text-muted-foreground text-xs">None</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button variant="outline" size="sm">
                           <Edit className="h-4 w-4 mr-1" /> Edit

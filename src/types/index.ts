@@ -14,14 +14,27 @@ export interface User {
   updatedAt: string;
 }
 
+export interface EnterpriseCategory {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  imageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Enterprise {
   id: string;
   name: string;
   description: string;
   logoUrl?: string;
   ownerId: string;
+  categoryId?: string;
   createdAt: string;
   updatedAt: string;
+  category?: EnterpriseCategory;
 }
 
 export interface Category {
@@ -38,6 +51,9 @@ export interface Product {
   price: number;
   quantity: number;
   imageUrl?: string;
+  videoUrl?: string;
+  fileUrl?: string;
+  stickerUrl?: string;
   enterpriseId: string;
   categoryId: string;
   createdAt: string;
@@ -53,6 +69,15 @@ export interface Booking {
   pickupCode?: string; // QR code data
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OrderCode {
+  id: string;
+  bookingId: string;
+  code: string;
+  expiresAt: string;
+  used: boolean;
+  createdAt: string;
 }
 
 export interface AuthFormData {
@@ -73,5 +98,8 @@ export interface ProductFormData {
   price: number;
   quantity: number;
   image?: File;
+  video?: File;
+  file?: File;
+  sticker?: File;
   categoryId: string;
 }
