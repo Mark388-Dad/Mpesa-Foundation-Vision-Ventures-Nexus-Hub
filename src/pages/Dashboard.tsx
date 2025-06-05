@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { EnhancedProductForm } from "@/components/dashboard/EnhancedProductForm";
 import { BookingsList } from "@/components/dashboard/BookingsList";
-import { Product, ProductFormData, Category, Booking, User } from "@/types";
+import { Product, ProductFormData, EnterpriseCategory, Booking, User } from "@/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -44,10 +45,10 @@ const Dashboard = () => {
   }
 
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
+    queryKey: ['enterprise-categories'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('categories')
+        .from('enterprise_categories')
         .select('*');
       
       if (error) throw error;
@@ -56,7 +57,12 @@ const Dashboard = () => {
         id: category.id,
         name: category.name,
         description: category.description,
-      })) as Category[];
+        icon: category.icon,
+        color: category.color,
+        imageUrl: category.image_url,
+        createdAt: category.created_at,
+        updatedAt: category.updated_at
+      })) as EnterpriseCategory[];
     },
     meta: {
       onError: (error: any) => {
@@ -70,7 +76,7 @@ const Dashboard = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*, categories:category_id(*)')
+        .select('*, enterprise_categories:category_id(*)')
         .eq('enterprise_id', enterpriseId);
       
       if (error) throw error;
@@ -82,16 +88,24 @@ const Dashboard = () => {
         price: product.price,
         quantity: product.quantity,
         imageUrl: product.image_url,
+        videoUrl: product.video_url,
+        fileUrl: product.file_url,
+        stickerUrl: product.sticker_url,
         enterpriseId: product.enterprise_id,
         categoryId: product.category_id,
         createdAt: product.created_at,
         updatedAt: product.updated_at,
-        category: {
-          id: product.categories.id,
-          name: product.categories.name,
-          description: product.categories.description
-        }
-      })) as (Product & { category: Category })[];
+        category: product.enterprise_categories ? {
+          id: product.enterprise_categories.id,
+          name: product.enterprise_categories.name,
+          description: product.enterprise_categories.description,
+          icon: product.enterprise_categories.icon,
+          color: product.enterprise_categories.color,
+          imageUrl: product.enterprise_categories.image_url,
+          createdAt: product.enterprise_categories.created_at,
+          updatedAt: product.enterprise_categories.updated_at
+        } : undefined
+      })) as (Product & { category?: EnterpriseCategory })[];
     },
     meta: {
       onError: (error: any) => {
@@ -143,6 +157,9 @@ const Dashboard = () => {
           price: booking.products.price,
           quantity: booking.products.quantity,
           imageUrl: booking.products.image_url,
+          videoUrl: booking.products.video_url,
+          fileUrl: booking.products.file_url,
+          stickerUrl: booking.products.sticker_url,
           enterpriseId: booking.products.enterprise_id,
           categoryId: booking.products.category_id,
           createdAt: booking.products.created_at,
@@ -152,8 +169,11 @@ const Dashboard = () => {
           id: booking.profiles.id,
           email: booking.profiles.email,
           username: booking.profiles.username,
+          fullName: booking.profiles.full_name,
           admissionNumber: booking.profiles.admission_number,
+          phoneNumber: booking.profiles.phone_number,
           role: booking.profiles.role,
+          enterpriseId: booking.profiles.enterprise_id,
           createdAt: booking.profiles.created_at,
           updatedAt: booking.profiles.updated_at
         }
@@ -177,72 +197,42 @@ const Dashboard = () => {
       let fileUrl = undefined;
       let stickerUrl = undefined;
       
-      if (formData.image) {
-        const fileExt = formData.image.name.split('.').pop();
-        const filePath = `${enterpriseId}/${Date.now()}-image.${fileExt}`;
+      const uploadFile = async (file: File, bucket: string) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+        const filePath = `${enterpriseId}/${fileName}`;
         
         const { error: uploadError, data } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, formData.image);
+          .from(bucket)
+          .upload(filePath, file);
           
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error(`${bucket} upload error:`, uploadError);
+          throw uploadError;
+        }
         
-        const { data: publicUrlData } = supabase.storage
-          .from('product-images')
+        // Get the public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucket)
           .getPublicUrl(filePath);
           
-        imageUrl = publicUrlData.publicUrl;
+        return publicUrl;
+      };
+
+      if (formData.image) {
+        imageUrl = await uploadFile(formData.image, 'product-images');
       }
       
       if (formData.video) {
-        const fileExt = formData.video.name.split('.').pop();
-        const filePath = `${enterpriseId}/${Date.now()}-video.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('product-videos')
-          .upload(filePath, formData.video);
-          
-        if (uploadError) throw uploadError;
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('product-videos')
-          .getPublicUrl(filePath);
-          
-        videoUrl = publicUrlData.publicUrl;
+        videoUrl = await uploadFile(formData.video, 'product-videos');
       }
       
       if (formData.file) {
-        const fileExt = formData.file.name.split('.').pop();
-        const filePath = `${enterpriseId}/${Date.now()}-file.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('product-files')
-          .upload(filePath, formData.file);
-          
-        if (uploadError) throw uploadError;
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('product-files')
-          .getPublicUrl(filePath);
-          
-        fileUrl = publicUrlData.publicUrl;
+        fileUrl = await uploadFile(formData.file, 'product-files');
       }
       
       if (formData.sticker) {
-        const fileExt = formData.sticker.name.split('.').pop();
-        const filePath = `${enterpriseId}/${Date.now()}-sticker.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('product-stickers')
-          .upload(filePath, formData.sticker);
-          
-        if (uploadError) throw uploadError;
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('product-stickers')
-          .getPublicUrl(filePath);
-          
-        stickerUrl = publicUrlData.publicUrl;
+        stickerUrl = await uploadFile(formData.sticker, 'product-stickers');
       }
       
       const { data, error } = await supabase
