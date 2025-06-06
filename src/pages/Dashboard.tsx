@@ -73,7 +73,7 @@ const Dashboard = () => {
     }
   });
 
-  // Get products for enterprise users
+  // Get products for enterprise users with proper join
   const { data: products } = useQuery({
     queryKey: ['enterprise-products', profile.enterpriseId],
     queryFn: async () => {
@@ -84,7 +84,13 @@ const Dashboard = () => {
         .from('products')
         .select(`
           *,
-          enterprise_categories!category_id(name)
+          enterprise_categories!inner(
+            id,
+            name,
+            description,
+            icon,
+            color
+          )
         `)
         .eq('enterprise_id', profile.enterpriseId)
         .order('created_at', { ascending: false });
@@ -148,7 +154,7 @@ const Dashboard = () => {
     enabled: profile.role === 'student'
   });
 
-  // Add product mutation with loading state
+  // Add product mutation with enhanced functionality
   const createProductMutation = useMutation({
     mutationFn: async (productData: any) => {
       console.log("Creating product with data:", productData);
@@ -156,6 +162,44 @@ const Dashboard = () => {
       
       if (!profile.enterpriseId) {
         throw new Error("No enterprise ID found");
+      }
+
+      // Handle file uploads first
+      const uploadFile = async (file: File, bucket: string) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+        const filePath = `${profile.enterpriseId}/${fileName}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, file);
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(filePath);
+          
+        return publicUrl;
+      };
+
+      // Upload files if provided
+      let imageUrl = null;
+      let videoUrl = null;
+      let fileUrl = null;
+      let stickerUrl = null;
+
+      if (productData.image) {
+        imageUrl = await uploadFile(productData.image, 'product-images');
+      }
+      if (productData.video) {
+        videoUrl = await uploadFile(productData.video, 'product-videos');
+      }
+      if (productData.file) {
+        fileUrl = await uploadFile(productData.file, 'product-files');
+      }
+      if (productData.sticker) {
+        stickerUrl = await uploadFile(productData.sticker, 'product-stickers');
       }
 
       const { error } = await supabase
@@ -167,10 +211,10 @@ const Dashboard = () => {
           quantity: productData.quantity,
           category_id: productData.categoryId,
           enterprise_id: profile.enterpriseId,
-          image_url: productData.imageUrl,
-          video_url: productData.videoUrl,
-          file_url: productData.fileUrl,
-          sticker_url: productData.stickerUrl
+          image_url: imageUrl,
+          video_url: videoUrl,
+          file_url: fileUrl,
+          sticker_url: stickerUrl
         });
 
       if (error) {

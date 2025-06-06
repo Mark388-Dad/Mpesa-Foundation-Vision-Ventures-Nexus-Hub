@@ -60,7 +60,7 @@ const EnterpriseProducts = () => {
     }
   });
 
-  // Fetch products for this enterprise
+  // Fetch products for this enterprise with proper join
   const { data: products = [], isLoading: productsLoading } = useQuery({
     queryKey: ['enterprise-products', enterpriseId],
     queryFn: async () => {
@@ -74,7 +74,13 @@ const EnterpriseProducts = () => {
         .from('products')
         .select(`
           *,
-          enterprise_categories!category_id(name)
+          enterprise_categories!inner(
+            id,
+            name,
+            description,
+            icon,
+            color
+          )
         `)
         .eq('enterprise_id', enterpriseId)
         .order('created_at', { ascending: false });
