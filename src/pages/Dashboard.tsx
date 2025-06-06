@@ -14,10 +14,8 @@ import {
   ShoppingCart, 
   TrendingUp, 
   Users, 
-  Eye,
   Plus,
   Calendar,
-  MapPin
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -41,16 +39,21 @@ const Dashboard = () => {
     queryFn: async () => {
       if (!profile.enterpriseId) return null;
       
+      console.log("Fetching enterprise data for:", profile.enterpriseId);
       const { data, error } = await supabase
         .from('enterprises')
         .select(`
           *,
-          enterprise_categories!inner(*)
+          enterprise_categories(*)
         `)
         .eq('id', profile.enterpriseId)
-        .single();
+        .maybeSingle();
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching enterprise:", error);
+        return null;
+      }
+      console.log("Enterprise data:", data);
       return data;
     },
     enabled: !!profile.enterpriseId && profile.role === 'enterprise'
@@ -76,16 +79,21 @@ const Dashboard = () => {
     queryFn: async () => {
       if (!profile.enterpriseId) return [];
       
+      console.log("Fetching products for enterprise:", profile.enterpriseId);
       const { data, error } = await supabase
         .from('products')
         .select(`
           *,
-          categories(name)
+          enterprise_categories!category_id(name)
         `)
         .eq('enterprise_id', profile.enterpriseId)
         .order('created_at', { ascending: false });
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching products:", error);
+        return [];
+      }
+      console.log("Products for dashboard:", data);
       return data || [];
     },
     enabled: !!profile.enterpriseId && profile.role === 'enterprise'
@@ -143,6 +151,13 @@ const Dashboard = () => {
   // Add product mutation with loading state
   const createProductMutation = useMutation({
     mutationFn: async (productData: any) => {
+      console.log("Creating product with data:", productData);
+      console.log("Enterprise ID:", profile.enterpriseId);
+      
+      if (!profile.enterpriseId) {
+        throw new Error("No enterprise ID found");
+      }
+
       const { error } = await supabase
         .from('products')
         .insert({
@@ -158,7 +173,10 @@ const Dashboard = () => {
           sticker_url: productData.stickerUrl
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Product creation error:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Product created successfully!");
@@ -166,6 +184,7 @@ const Dashboard = () => {
       queryClient.invalidateQueries({ queryKey: ['enterprise-products', profile.enterpriseId] });
     },
     onError: (error: any) => {
+      console.error("Product creation failed:", error);
       toast.error(`Failed to create product: ${error.message}`);
     }
   });
@@ -262,10 +281,13 @@ const Dashboard = () => {
                       </p>
                     </div>
                     <Badge variant="outline">
-                      {product.categories?.name}
+                      {product.enterprise_categories?.name || 'No category'}
                     </Badge>
                   </div>
                 ))}
+                {(!products || products.length === 0) && (
+                  <p className="text-muted-foreground text-center py-4">No products yet</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -291,6 +313,9 @@ const Dashboard = () => {
                     </Badge>
                   </div>
                 ))}
+                {(!bookings || bookings.length === 0) && (
+                  <p className="text-muted-foreground text-center py-4">No bookings yet</p>
+                )}
               </div>
             </CardContent>
           </Card>
