@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -37,6 +38,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const navigate = useNavigate();
   
+  // Helper function to map database profile to UserProfile interface
+  const mapDatabaseProfile = (data: any): UserProfile => ({
+    id: data.id,
+    email: data.email,
+    role: data.role,
+    username: data.username,
+    fullName: data.full_name,
+    admissionNumber: data.admission_number,
+    phoneNumber: data.phone_number,
+    enterpriseId: data.enterprise_id,
+    avatarUrl: data.avatar_url,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  });
+  
   useEffect(() => {
     // Set up auth state subscription first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -57,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (error) {
                 console.error("Error fetching user profile:", error);
               } else if (data) {
-                setProfile(data as UserProfile);
+                setProfile(mapDatabaseProfile(data));
               }
             } catch (err) {
               console.error("Error in profile fetch:", err);
@@ -88,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (error) {
             console.error("Error fetching user profile:", error);
           } else if (data) {
-            setProfile(data as UserProfile);
+            setProfile(mapDatabaseProfile(data));
           }
         }
       } catch (error) {
