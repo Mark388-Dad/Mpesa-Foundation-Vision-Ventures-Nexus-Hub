@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,7 @@ import {
 const Dashboard = () => {
   const { profile, loading } = useAuth();
   const [showProductForm, setShowProductForm] = useState(false);
+  const queryClient = useQueryClient();
   
   // Loading state
   if (loading) {
@@ -140,8 +140,9 @@ const Dashboard = () => {
     enabled: profile.role === 'student'
   });
 
-  const handleProductSubmit = async (productData: any) => {
-    try {
+  // Add product mutation with loading state
+  const createProductMutation = useMutation({
+    mutationFn: async (productData: any) => {
       const { error } = await supabase
         .from('products')
         .insert({
@@ -158,12 +159,19 @@ const Dashboard = () => {
         });
 
       if (error) throw error;
-      
+    },
+    onSuccess: () => {
       toast.success("Product created successfully!");
       setShowProductForm(false);
-    } catch (error: any) {
+      queryClient.invalidateQueries({ queryKey: ['enterprise-products', profile.enterpriseId] });
+    },
+    onError: (error: any) => {
       toast.error(`Failed to create product: ${error.message}`);
     }
+  });
+
+  const handleProductSubmit = async (productData: any) => {
+    createProductMutation.mutate(productData);
   };
 
   // Render different dashboards based on role
@@ -305,6 +313,7 @@ const Dashboard = () => {
                 <EnhancedProductForm 
                   onSubmit={handleProductSubmit}
                   categories={categories || []}
+                  isSubmitting={createProductMutation.isPending}
                 />
               </div>
             </div>
