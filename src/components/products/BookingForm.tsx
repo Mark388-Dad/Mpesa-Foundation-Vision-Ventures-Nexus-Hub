@@ -33,18 +33,87 @@ export function BookingForm({ product }: BookingFormProps) {
       quantity: number;
       status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
     }) => {
-      const { data, error } = await supabase
+      // Create the booking
+      const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert(bookingData)
         .select()
         .single();
         
-      if (error) throw error;
-      return data;
+      if (bookingError) throw bookingError;
+
+      // Send notifications after successful booking creation
+      try {
+        // Get product details for notifications
+        const { data: productData } = await supabase
+          .from('products')
+          .select(`
+            name,
+            enterprise_id,
+            enterprises:enterprise_id(owner_id)
+          `)
+          .eq('id', bookingData.product_id)
+          .single();
+
+        // Get all staff members
+        const { data: staffProfiles } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('role', 'staff');
+
+        const notifications = [];
+
+        // Notification to student who made the booking
+        notifications.push({
+          user_id: bookingData.student_id,
+          type: 'booking',
+          title: 'Booking Created',
+          message: `Your booking for "${productData?.name}" has been created and is pending confirmation.`,
+          related_id: booking.id
+        });
+
+        // Notification to enterprise owner
+        if (productData?.enterprises?.owner_id) {
+          notifications.push({
+            user_id: productData.enterprises.owner_id,
+            type: 'booking',
+            title: 'New Booking Received',
+            message: `You have a new booking for your product "${productData?.name}".`,
+            related_id: booking.id
+          });
+        }
+
+        // Notifications to all staff members
+        if (staffProfiles) {
+          staffProfiles.forEach(staff => {
+            notifications.push({
+              user_id: staff.id,
+              type: 'booking',
+              title: 'New Booking Alert',
+              message: `A new booking has been made for "${productData?.name}".`,
+              related_id: booking.id
+            });
+          });
+        }
+
+        // Insert all notifications
+        if (notifications.length > 0) {
+          await supabase
+            .from('notifications')
+            .insert(notifications);
+        }
+
+      } catch (notificationError) {
+        console.error('Error sending notifications:', notificationError);
+        // Don't fail the booking if notifications fail
+      }
+        
+      return booking;
     },
     onSuccess: () => {
       toast.success("Booking successful! You will receive an email confirmation shortly.");
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setQuantity(1);
     },
     onError: (error: any) => {

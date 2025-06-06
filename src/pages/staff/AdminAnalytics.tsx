@@ -1,175 +1,133 @@
 
-import { useAuth } from "@/context/AuthContext";
-import { Navigate } from "react-router-dom";
-import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const AdminAnalytics = () => {
-  const { profile, loading } = useAuth();
-  
-  // Loading state
-  if (loading) {
-    return <div className="academy-container py-16 text-center">Loading...</div>;
-  }
-  
-  // Check if user is authenticated and has staff role
-  if (!profile || profile.role !== 'staff') {
-    toast.error("You don't have permission to access admin analytics");
-    return <Navigate to="/" />;
-  }
-
-  const { data: analytics, isLoading } = useQuery({
-    queryKey: ['admin-analytics'],
+  // Fetch analytics data
+  const { data: bookingsData = [] } = useQuery({
+    queryKey: ['admin-bookings-analytics'],
     queryFn: async () => {
-      // Get enterprises data
-      const { data: enterprises } = await supabase
-        .from('enterprises')
-        .select('*, enterprise_categories(name), profiles!enterprises_owner_id_fkey(*)');
-
-      // Get products data with proper joins
-      const { data: products } = await supabase
-        .from('products')
-        .select('*, categories(name)');
-
-      // Get bookings data with proper joins
-      const { data: bookings } = await supabase
+      const { data, error } = await supabase
         .from('bookings')
-        .select('*, products(price, categories(name))');
-
-      // Get notifications data
-      const { data: notifications } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      return {
-        enterprises: enterprises || [],
-        products: products || [],
-        bookings: bookings || [],
-        notifications: notifications || []
-      };
+        .select(`
+          *,
+          products!inner(
+            name,
+            price,
+            enterprise_categories!inner(
+              name
+            )
+          )
+        `);
+        
+      if (error) throw error;
+      return data || [];
     }
   });
 
-  if (isLoading) {
-    return (
-      <div className="academy-container py-8">
-        <div className="text-center">Loading analytics...</div>
-      </div>
-    );
-  }
+  const { data: productsData = [] } = useQuery({
+    queryKey: ['admin-products-analytics'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          enterprise_categories!inner(
+            name
+          )
+        `);
+        
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
-  if (!analytics) {
-    return (
-      <div className="academy-container py-8">
-        <div className="text-center">No analytics data available</div>
-      </div>
-    );
-  }
+  // Process data for charts
+  const statusData = bookingsData.reduce((acc: any, booking: any) => {
+    const status = booking.status;
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
 
-  // Calculate stats
-  const totalEnterprises = analytics.enterprises.length;
-  const totalProducts = analytics.products.length;
-  const totalBookings = analytics.bookings.length;
-  const totalRevenue = analytics.bookings.reduce((sum, booking) => {
-    return sum + (booking.products?.price || 0) * booking.quantity;
-  }, 0);
+  const chartData = Object.entries(statusData).map(([status, count]) => ({
+    status: status.charAt(0).toUpperCase() + status.slice(1),
+    count
+  }));
 
-  // Category distribution
-  const categoryData = analytics.products.reduce((acc: any, product) => {
-    const categoryName = product.categories?.name || 'Uncategorized';
+  const categoryData = productsData.reduce((acc: any, product: any) => {
+    const categoryName = product.enterprise_categories?.name || 'Uncategorized';
     acc[categoryName] = (acc[categoryName] || 0) + 1;
     return acc;
   }, {});
 
-  const pieData = Object.entries(categoryData).map(([name, value]) => ({
-    name,
-    value,
-    color: `hsl(${Math.random() * 360}, 50%, 50%)`
-  }));
-
-  // Booking status distribution
-  const statusData = analytics.bookings.reduce((acc: any, booking) => {
-    acc[booking.status] = (acc[booking.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  const statusChartData = Object.entries(statusData).map(([status, count]) => ({
-    status,
+  const categoryChartData = Object.entries(categoryData).map(([category, count]) => ({
+    category,
     count
   }));
 
-  // Revenue by category
-  const revenueByCategory = analytics.bookings.reduce((acc: any, booking) => {
-    const categoryName = booking.products?.categories?.name || 'Uncategorized';
-    const revenue = (booking.products?.price || 0) * booking.quantity;
-    acc[categoryName] = (acc[categoryName] || 0) + revenue;
-    return acc;
-  }, {});
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
-  const revenueData = Object.entries(revenueByCategory).map(([category, revenue]) => ({
-    category,
-    revenue
-  }));
+  const totalBookings = bookingsData.length;
+  const totalRevenue = bookingsData
+    .filter((booking: any) => booking.status === 'confirmed')
+    .reduce((sum: number, booking: any) => sum + (booking.products?.price || 0) * booking.quantity, 0);
+  const totalProducts = productsData.length;
 
   return (
     <div className="academy-container py-8">
       <h1 className="text-2xl font-bold mb-6">Analytics Dashboard</h1>
       
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Enterprises
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>Total Bookings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalEnterprises}</div>
+            <p className="text-3xl font-bold text-academy-blue">{totalBookings}</p>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Products
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalProducts}</div>
+            <p className="text-3xl font-bold text-academy-green">KES {totalRevenue.toFixed(2)}</p>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Bookings
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>Total Products</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalBookings}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">KES {totalRevenue.toLocaleString()}</div>
+            <p className="text-3xl font-bold text-academy-amber">{totalProducts}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Products by Category */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Booking Status Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="status" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#3B82F6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Products by Category</CardTitle>
@@ -178,17 +136,17 @@ const AdminAnalytics = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={pieData}
+                  data={categoryChartData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
-                  dataKey="value"
+                  dataKey="count"
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {categoryChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -196,68 +154,7 @@ const AdminAnalytics = () => {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Booking Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Booking Status Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={statusChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="status" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
       </div>
-
-      {/* Revenue by Category */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Revenue by Category</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="category" />
-              <YAxis />
-              <Tooltip formatter={(value) => [`KES ${value}`, 'Revenue']} />
-              <Bar dataKey="revenue" fill="#82ca9d" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Notifications</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {analytics.notifications.slice(0, 10).map((notification) => (
-              <div key={notification.id} className="flex items-center justify-between p-3 border rounded">
-                <div>
-                  <p className="font-medium">{notification.title}</p>
-                  <p className="text-sm text-muted-foreground">{notification.message}</p>
-                </div>
-                <div className="text-right">
-                  <Badge variant="outline">{notification.type}</Badge>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(notification.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

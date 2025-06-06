@@ -12,19 +12,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { Drawer, DrawerClose, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { EnhancedProductForm } from "@/components/dashboard/EnhancedProductForm";
 import { ProductFormData } from "@/types";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog";
 
 const EnterpriseProducts = () => {
   const { profile, user, loading } = useAuth();
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [isEditProductOpen, setIsEditProductOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  // Loading state
   if (loading) {
     return <div className="academy-container py-16 text-center">Loading...</div>;
   }
   
-  // Check if user is authenticated and has enterprise role
   if (!profile) {
     toast.error("You need to be logged in to access enterprise products");
     return <Navigate to="/auth" />;
@@ -35,7 +46,6 @@ const EnterpriseProducts = () => {
     return <Navigate to="/" />;
   }
 
-  // Use the enterprise ID from the profile if available, otherwise use the user ID
   const enterpriseId = profile.enterpriseId || user?.id;
 
   console.log("Enterprise ID:", enterpriseId);
@@ -95,43 +105,34 @@ const EnterpriseProducts = () => {
     enabled: !!enterpriseId
   });
 
-  // Add product mutation with enhanced error handling
+  // Add product mutation
   const addProductMutation = useMutation({
     mutationFn: async (productData: ProductFormData) => {
       console.log("Starting product creation with data:", productData);
-      console.log("Enterprise ID being used:", enterpriseId);
       
       if (!enterpriseId) {
         throw new Error("No enterprise ID found. Please ensure you're logged in as an enterprise user.");
       }
 
-      // Handle file uploads if any
+      // Handle file uploads
       const uploadFile = async (file: File, bucket: string) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${enterpriseId}/${fileName}`;
         
-        console.log(`Uploading ${bucket} file:`, fileName);
-        
         const { error: uploadError, data } = await supabase.storage
           .from(bucket)
           .upload(filePath, file);
           
-        if (uploadError) {
-          console.error(`${bucket} upload error:`, uploadError);
-          throw uploadError;
-        }
+        if (uploadError) throw uploadError;
         
-        // Get the public URL for the uploaded file
         const { data: { publicUrl } } = supabase.storage
           .from(bucket)
           .getPublicUrl(filePath);
           
-        console.log(`${bucket} uploaded successfully:`, publicUrl);
         return publicUrl;
       };
 
-      // Upload files to appropriate buckets
       let imageUrl = null;
       let videoUrl = null;
       let fileUrl = null;
@@ -155,7 +156,6 @@ const EnterpriseProducts = () => {
         throw new Error("Failed to upload files. Please try again.");
       }
       
-      // Prepare product data for insertion
       const productToInsert = {
         name: productData.name,
         description: productData.description,
@@ -169,40 +169,134 @@ const EnterpriseProducts = () => {
         sticker_url: stickerUrl
       };
       
-      console.log("Inserting product:", productToInsert);
-      
-      // Insert product data into the database
       const { data, error } = await supabase
         .from('products')
         .insert([productToInsert])
         .select();
         
       if (error) {
-        console.error("Product insertion error:", error);
         throw new Error(`Failed to create product: ${error.message}`);
       }
       
-      console.log("Product created successfully:", data);
       return data;
     },
     onSuccess: (data) => {
-      console.log("Product creation successful:", data);
       toast.success("Product added successfully!");
       setIsAddProductOpen(false);
       queryClient.invalidateQueries({ queryKey: ['enterprise-products', enterpriseId] });
     },
     onError: (error: any) => {
-      console.error("Error in product creation mutation:", error);
       toast.error(`Failed to save product: ${error.message}`);
     }
   });
 
+  // Edit product mutation
+  const editProductMutation = useMutation({
+    mutationFn: async ({ id, productData }: { id: string, productData: ProductFormData }) => {
+      const updateData: any = {
+        name: productData.name,
+        description: productData.description,
+        price: productData.price,
+        quantity: productData.quantity,
+        category_id: productData.categoryId,
+      };
+
+      // Handle file uploads for edit
+      const uploadFile = async (file: File, bucket: string) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+        const filePath = `${enterpriseId}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, file);
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(filePath);
+          
+        return publicUrl;
+      };
+
+      if (productData.image) {
+        updateData.image_url = await uploadFile(productData.image, 'product-images');
+      }
+      if (productData.video) {
+        updateData.video_url = await uploadFile(productData.video, 'product-videos');
+      }
+      if (productData.file) {
+        updateData.file_url = await uploadFile(productData.file, 'product-files');
+      }
+      if (productData.sticker) {
+        updateData.sticker_url = await uploadFile(productData.sticker, 'product-stickers');
+      }
+
+      const { error } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', id);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Product updated successfully!");
+      setIsEditProductOpen(false);
+      setEditingProduct(null);
+      queryClient.invalidateQueries({ queryKey: ['enterprise-products', enterpriseId] });
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update product: ${error.message}`);
+    }
+  });
+
+  // Delete product mutation
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Product deleted successfully!");
+      queryClient.invalidateQueries({ queryKey: ['enterprise-products', enterpriseId] });
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete product: ${error.message}`);
+    }
+  });
+
   const handleSubmitProduct = async (data: ProductFormData) => {
-    console.log("Product form submitted:", data);
     try {
       await addProductMutation.mutateAsync(data);
     } catch (error) {
       console.error("Product submission failed:", error);
+    }
+  };
+
+  const handleEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setIsEditProductOpen(true);
+  };
+
+  const handleUpdateProduct = async (data: ProductFormData) => {
+    if (!editingProduct) return;
+    try {
+      await editProductMutation.mutateAsync({ id: editingProduct.id, productData: data });
+    } catch (error) {
+      console.error("Product update failed:", error);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      await deleteProductMutation.mutateAsync(productId);
+    } catch (error) {
+      console.error("Product deletion failed:", error);
     }
   };
 
@@ -254,6 +348,36 @@ const EnterpriseProducts = () => {
           </DrawerContent>
         </Drawer>
       </div>
+
+      {/* Edit Product Drawer */}
+      <Drawer open={isEditProductOpen} onOpenChange={setIsEditProductOpen}>
+        <DrawerContent className="max-h-[90vh] overflow-y-auto">
+          <DrawerHeader>
+            <DrawerTitle>Edit Product</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 py-2 max-w-4xl mx-auto w-full">
+            {editingProduct && (
+              <EnhancedProductForm 
+                categories={categories}
+                initialData={{
+                  name: editingProduct.name,
+                  description: editingProduct.description,
+                  price: editingProduct.price,
+                  quantity: editingProduct.quantity,
+                  categoryId: editingProduct.category_id
+                }}
+                onSubmit={handleUpdateProduct}
+                isSubmitting={editProductMutation.isPending}
+              />
+            )}
+          </div>
+          <DrawerFooter>
+            <DrawerClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
       
       <Card>
         <CardHeader>
@@ -323,12 +447,37 @@ const EnterpriseProducts = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditProduct(product)}
+                        >
                           <Edit className="h-4 w-4 mr-1" /> Edit
                         </Button>
-                        <Button variant="destructive" size="sm">
-                          <Trash2 className="h-4 w-4 mr-1" /> Delete
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4 mr-1" /> Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the product "{product.name}".
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteProduct(product.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}

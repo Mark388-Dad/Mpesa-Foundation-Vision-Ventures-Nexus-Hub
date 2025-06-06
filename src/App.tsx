@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import CategoryProducts from "./pages/CategoryProducts";
 import ProductDetail from "./pages/ProductDetail";
 import ProductsPage from "./pages/ProductsPage";
+import BrowseProducts from "./pages/BrowseProducts";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentBookings from "./pages/StudentBookings";
 import StudentReviews from "./pages/student/StudentReviews";
@@ -46,6 +47,7 @@ function App() {
                 <Route path="category/:categoryId" element={<CategoryProducts />} />
                 <Route path="product/:productId" element={<ProductDetail />} />
                 <Route path="products" element={<ProductsPage />} />
+                <Route path="browse" element={<BrowseProducts />} />
                 <Route path="profile" element={<Profile />} />
                 
                 {/* Student Routes */}
