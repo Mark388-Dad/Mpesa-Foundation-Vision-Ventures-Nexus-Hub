@@ -1,5 +1,4 @@
 
-import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,26 +9,27 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { BookingForm } from "@/components/products/BookingForm";
 import { formatPrice } from "@/utils/helpers";
-import { Loader2, Package, Calendar, Tag, Building2 } from "lucide-react";
+import { Loader2, Package, Calendar, Tag, Building2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 const ProductDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const { productId } = useParams<{ productId: string }>();
   const { profile } = useAuth();
   
   const { data: product, isLoading, error } = useQuery({
-    queryKey: ['product', id],
+    queryKey: ['product', productId],
     queryFn: async () => {
-      if (!id) throw new Error("Product ID is required");
+      if (!productId) throw new Error("Product ID is required");
       
       const { data, error } = await supabase
         .from('products')
         .select(`
           *,
-          categories:category_id(*),
-          enterprises:enterprise_id(*)
+          enterprise_categories!inner(*),
+          enterprises!inner(*)
         `)
-        .eq('id', id)
+        .eq('id', productId)
         .single();
       
       if (error) throw error;
@@ -56,10 +56,10 @@ const ProductDetail = () => {
           updatedAt: data.enterprises.updated_at
         },
         category: {
-          id: data.categories.id,
-          name: data.categories.name,
-          description: data.categories.description,
-          imageUrl: data.categories.image_url
+          id: data.enterprise_categories.id,
+          name: data.enterprise_categories.name,
+          description: data.enterprise_categories.description,
+          imageUrl: data.enterprise_categories.image_url
         }
       } as (Product & { enterprise: Enterprise, category: Category });
     },
@@ -83,18 +83,20 @@ const ProductDetail = () => {
     return (
       <div className="academy-container py-16 text-center">
         <h2 className="text-2xl font-bold mb-2">Product Not Found</h2>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mb-4">
           The product you are looking for does not exist or has been removed.
         </p>
-        <Button className="mt-4" onClick={() => window.history.back()}>
-          Go Back
+        <Button asChild>
+          <Link to="/products">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Products
+          </Link>
         </Button>
       </div>
     );
   }
 
   // Determine if the current user is allowed to view pricing details
-  // (both students and enterprise members can see prices)
   const canSeeProductDetails = 
     profile?.role === 'enterprise' || 
     profile?.role === 'student' || 
@@ -102,6 +104,16 @@ const ProductDetail = () => {
 
   return (
     <div className="academy-container py-8">
+      {/* Back Button */}
+      <div className="mb-6">
+        <Button variant="ghost" asChild>
+          <Link to="/products">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Products
+          </Link>
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Product Image */}
         <div>

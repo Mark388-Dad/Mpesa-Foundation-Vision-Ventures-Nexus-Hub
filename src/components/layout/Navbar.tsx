@@ -1,178 +1,193 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { User, Menu, LogOut, Settings, Shield } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { UserRole } from "@/types";
 import { useAuth } from "@/context/AuthContext";
+import { UserRole } from "@/types";
+import { LogOut, User, Bell, Menu, X } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NavbarProps {
   userRole?: UserRole;
 }
 
 export function Navbar({ userRole }: NavbarProps) {
-  const isMobile = useIsMobile();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { profile, signOut } = useAuth();
-  
-  // Use provided role or the one from auth context
-  const activeRole = userRole || profile?.role;
-  const isAuthenticated = !!profile;
+  const { user, profile, logout } = useAuth();
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-  
+  // Fetch unread notifications count
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['unread-notifications', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+        
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!user?.id
+  });
+
   const handleLogout = async () => {
-    if (signOut) {
-      try {
-        await signOut();
-      } catch (error) {
-        console.error("Error logging out:", error);
-      }
+    await logout();
+    navigate("/");
+  };
+
+  const getNavLinks = () => {
+    const baseLinks = [
+      { to: "/", label: "Home" },
+      { to: "/products", label: "Products" },
+      { to: "/browse", label: "Browse" },
+    ];
+
+    if (!user) return baseLinks;
+
+    switch (profile?.role) {
+      case 'student':
+        return [
+          ...baseLinks,
+          { to: "/student/dashboard", label: "Dashboard" },
+          { to: "/student/bookings", label: "My Bookings" },
+        ];
+      case 'enterprise':
+        return [
+          ...baseLinks,
+          { to: "/dashboard", label: "Dashboard" },
+          { to: "/enterprise/products", label: "My Products" },
+        ];
+      case 'staff':
+        return [
+          ...baseLinks,
+          { to: "/admin", label: "Admin Panel" },
+          { to: "/admin/analytics", label: "Analytics" },
+        ];
+      default:
+        return baseLinks;
     }
   };
-  
+
+  const navLinks = getNavLinks();
+
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-50">
+    <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
       <div className="academy-container">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center">
-              <img 
-                src="/lovable-uploads/fb06c830-b892-411b-a998-cdc07a581c12.png" 
-                alt="MFA Hub Logo" 
-                className="h-12 mr-2"
-              />
-              <div className="flex flex-col">
-                <span className="text-xl font-bold text-academy-blue">MFA</span>
-                <span className="text-xl font-bold text-academy-green -mt-1">Hub</span>
-              </div>
-            </Link>
-          </div>
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-academy-blue rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">MA</span>
+            </div>
+            <span className="font-bold text-lg text-academy-blue">
+              M-Pesa Foundation Academy
+            </span>
+          </Link>
 
           {/* Desktop Navigation */}
-          {!isMobile && (
-            <nav className="hidden md:flex space-x-4">
-              <Link to="/" className="nav-link">Home</Link>
-              <Link to="/products" className="nav-link">Products</Link>
-              {isAuthenticated && activeRole === 'student' && (
-                <Link to="/bookings" className="nav-link">My Bookings</Link>
-              )}
-              {isAuthenticated && activeRole === 'enterprise' && (
-                <Link to="/dashboard" className="nav-link">Dashboard</Link>
-              )}
-              {isAuthenticated && activeRole === 'staff' && (
-                <Link to="/admin" className="nav-link">Admin</Link>
-              )}
-            </nav>
-          )}
-
-          <div className="flex items-center">
-            {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>
-                    {profile?.username || profile?.email}
-                    <div className="text-xs text-muted-foreground font-normal mt-1">
-                      {activeRole?.charAt(0).toUpperCase() + activeRole?.slice(1)}
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="flex items-center">
-                      <User className="h-4 w-4 mr-2" />
-                      <span>Profile</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  {activeRole === 'student' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/bookings" className="flex items-center">
-                        <User className="h-4 w-4 mr-2" />
-                        <span>My Bookings</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {activeRole === 'enterprise' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard" className="flex items-center">
-                        <User className="h-4 w-4 mr-2" />
-                        <span>Dashboard</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {activeRole === 'staff' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin" className="flex items-center">
-                        <Shield className="h-4 w-4 mr-2" />
-                        <span>Admin Panel</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="flex items-center">
-                      <Settings className="h-4 w-4 mr-2" />
-                      <span>Settings</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="flex items-center">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    <span>Logout</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button asChild variant="default" className="btn-primary">
-                <Link to="/auth">Login / Register</Link>
-              </Button>
-            )}
-
-            {/* Mobile menu button */}
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden ml-2"
-                onClick={toggleMenu}
+          <div className="hidden md:flex items-center space-x-8">
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="text-sm font-medium text-gray-700 hover:text-academy-blue transition-colors"
               >
-                <Menu className="h-5 w-5" />
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* User Actions */}
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <>
+                {/* Notifications */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <Badge 
+                          variant="destructive" 
+                          className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="end">
+                    <NotificationCenter />
+                  </PopoverContent>
+                </Popover>
+
+                {/* User Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-2 py-1.5">
+                      <p className="text-sm font-medium">{profile?.username || user.email}</p>
+                      <p className="text-xs text-muted-foreground">{profile?.role}</p>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="w-full">
+                        Profile Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Button asChild className="btn-primary">
+                <Link to="/auth">Login</Link>
               </Button>
             )}
+
+            {/* Mobile Menu */}
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-80">
+                <div className="flex flex-col space-y-4 mt-8">
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      className="text-lg font-medium text-gray-700 hover:text-academy-blue transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
-        
-        {/* Mobile Navigation Menu */}
-        {isMobile && isMenuOpen && (
-          <div className="md:hidden py-2 space-y-1 animate-fade-in">
-            <Link to="/" className="nav-link block">Home</Link>
-            <Link to="/products" className="nav-link block">Products</Link>
-            {isAuthenticated && activeRole === 'student' && (
-              <Link to="/bookings" className="nav-link block">My Bookings</Link>
-            )}
-            {isAuthenticated && activeRole === 'enterprise' && (
-              <Link to="/dashboard" className="nav-link block">Dashboard</Link>
-            )}
-            {isAuthenticated && activeRole === 'staff' && (
-              <Link to="/admin" className="nav-link block">Admin</Link>
-            )}
-          </div>
-        )}
       </div>
-    </header>
+    </nav>
   );
 }

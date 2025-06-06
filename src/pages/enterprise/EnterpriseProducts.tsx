@@ -190,48 +190,15 @@ const EnterpriseProducts = () => {
     }
   });
 
-  // Edit product mutation
+  // Edit product mutation (simplified - just basic fields for now)
   const editProductMutation = useMutation({
-    mutationFn: async ({ id, productData }: { id: string, productData: ProductFormData }) => {
-      const updateData: any = {
+    mutationFn: async ({ id, productData }: { id: string, productData: any }) => {
+      const updateData = {
         name: productData.name,
         description: productData.description,
         price: productData.price,
         quantity: productData.quantity,
-        category_id: productData.categoryId,
       };
-
-      // Handle file uploads for edit
-      const uploadFile = async (file: File, bucket: string) => {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-        const filePath = `${enterpriseId}/${fileName}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, file);
-          
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from(bucket)
-          .getPublicUrl(filePath);
-          
-        return publicUrl;
-      };
-
-      if (productData.image) {
-        updateData.image_url = await uploadFile(productData.image, 'product-images');
-      }
-      if (productData.video) {
-        updateData.video_url = await uploadFile(productData.video, 'product-videos');
-      }
-      if (productData.file) {
-        updateData.file_url = await uploadFile(productData.file, 'product-files');
-      }
-      if (productData.sticker) {
-        updateData.sticker_url = await uploadFile(productData.sticker, 'product-stickers');
-      }
 
       const { error } = await supabase
         .from('products')
@@ -286,7 +253,15 @@ const EnterpriseProducts = () => {
   const handleUpdateProduct = async (data: ProductFormData) => {
     if (!editingProduct) return;
     try {
-      await editProductMutation.mutateAsync({ id: editingProduct.id, productData: data });
+      await editProductMutation.mutateAsync({ 
+        id: editingProduct.id, 
+        productData: {
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          quantity: data.quantity
+        }
+      });
     } catch (error) {
       console.error("Product update failed:", error);
     }
@@ -359,13 +334,6 @@ const EnterpriseProducts = () => {
             {editingProduct && (
               <EnhancedProductForm 
                 categories={categories}
-                initialData={{
-                  name: editingProduct.name,
-                  description: editingProduct.description,
-                  price: editingProduct.price,
-                  quantity: editingProduct.quantity,
-                  categoryId: editingProduct.category_id
-                }}
                 onSubmit={handleUpdateProduct}
                 isSubmitting={editProductMutation.isPending}
               />

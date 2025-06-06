@@ -1,65 +1,29 @@
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { ProductCard } from "@/components/products/ProductCard";
 import { CategoryFilter } from "@/components/products/CategoryFilter";
-import { Product, Category, Enterprise } from "@/types";
-import { Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Product, Enterprise, Category } from "@/types";
+import { Search, Package } from "lucide-react";
 
 const ProductsPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  
-  // Initialize state from URL params
-  useEffect(() => {
-    const categoryFromUrl = searchParams.get("category");
-    if (categoryFromUrl) {
-      setSelectedCategories([categoryFromUrl]);
-    }
-    
-    const searchFromUrl = searchParams.get("search");
-    if (searchFromUrl) {
-      setSearchQuery(searchFromUrl);
-    }
-  }, [searchParams]);
-  
-  // Fetch categories from Supabase
-  const { data: categories = [], isLoading: loadingCategories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*');
-        
-      if (error) throw error;
-      
-      return (data || []).map(category => ({
-        id: category.id,
-        name: category.name,
-        description: category.description,
-        imageUrl: category.image_url
-      })) as Category[];
-    },
-    meta: {
-      onError: (error: any) => {
-        toast.error(`Error loading categories: ${error.message}`);
-      }
-    }
-  });
-  
-  // Fetch products from Supabase
-  const { data: products = [], isLoading: loadingProducts } = useQuery({
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Fetch products with enterprise and category data
+  const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*, enterprises:enterprise_id(*)');
+        .select(`
+          *,
+          enterprises!inner(*),
+          enterprise_categories!inner(*)
+        `)
+        .gt('quantity', 0);
         
       if (error) throw error;
       
@@ -82,147 +46,94 @@ const ProductsPage = () => {
           ownerId: product.enterprises.owner_id,
           createdAt: product.enterprises.created_at,
           updatedAt: product.enterprises.updated_at
+        },
+        category: {
+          id: product.enterprise_categories.id,
+          name: product.enterprise_categories.name,
+          description: product.enterprise_categories.description,
+          imageUrl: product.enterprise_categories.image_url
         }
-      })) as (Product & { enterprise: Enterprise })[];
-    },
-    meta: {
-      onError: (error: any) => {
-        toast.error(`Error loading products: ${error.message}`);
-      }
+      })) as (Product & { enterprise: Enterprise, category: Category })[];
     }
   });
-  
-  const handleSearch = () => {
-    const currentParams = Object.fromEntries(searchParams.entries());
-    setSearchParams({
-      ...currentParams,
-      search: searchQuery
-    });
-  };
-  
-  const handleCategoryChange = (categoryIds: string[]) => {
-    setSelectedCategories(categoryIds);
-    const currentParams = Object.fromEntries(searchParams.entries());
-    
-    if (categoryIds.length === 0) {
-      const { category, ...rest } = currentParams;
-      setSearchParams(rest);
-    } else {
-      setSearchParams({
-        ...currentParams,
-        category: categoryIds.join(",")
-      });
+
+  // Fetch categories for filter
+  const { data: categories = [] } = useQuery({
+    queryKey: ['enterprise-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('enterprise_categories')
+        .select('*')
+        .order('name');
+        
+      if (error) throw error;
+      return data || [];
     }
-  };
-  
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-  
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
-  };
-  
+  });
+
+  // Filter products based on search and category
   const filteredProducts = products.filter(product => {
-    const matchesSearch = searchQuery === "" || 
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.enterprise.name.toLowerCase().includes(searchQuery.toLowerCase());
-      
-    const matchesCategory = selectedCategories.length === 0 || 
-      selectedCategories.includes(product.categoryId);
-      
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.enterprise.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
+    
     return matchesSearch && matchesCategory;
   });
-  
-  const isLoading = loadingProducts || loadingCategories;
-  
+
   return (
-    <div className="py-8">
-      <div className="academy-container">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Products</h1>
-          <p className="text-muted-foreground mt-2">
-            Browse and book products from student-run enterprises
+    <div className="academy-container py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">All Products</h1>
+        <p className="text-muted-foreground">
+          Discover products from our academy enterprises
+        </p>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="mb-8 space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search products, enterprises..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        <CategoryFilter
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+        />
+      </div>
+
+      {/* Products Grid */}
+      {isLoading ? (
+        <div className="text-center py-12">
+          <Package className="mx-auto h-12 w-12 text-muted-foreground opacity-20" />
+          <p className="text-muted-foreground mt-4">Loading products...</p>
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="text-center py-12">
+          <Package className="mx-auto h-12 w-12 text-muted-foreground opacity-20" />
+          <h3 className="text-lg font-medium mb-2">No products found</h3>
+          <p className="text-muted-foreground">
+            {searchTerm || selectedCategory 
+              ? "Try adjusting your search or filter criteria"
+              : "No products are currently available"
+            }
           </p>
         </div>
-        
-        {/* Search Bar */}
-        <div className="flex mb-8">
-          <div className="relative flex-1">
-            <Input
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={handleSearchInputChange}
-              onKeyDown={handleKeyDown}
-              className="pl-10"
-            />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </div>
-          <Button className="ml-2 btn-primary" onClick={handleSearch}>
-            Search
-          </Button>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredProducts.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Sidebar with Filters */}
-          <div className="md:col-span-1">
-            <CategoryFilter
-              categories={categories}
-              selectedCategories={selectedCategories}
-              onCategoryChange={handleCategoryChange}
-              isLoading={loadingCategories}
-            />
-          </div>
-          
-          {/* Product Grid */}
-          <div className="md:col-span-3">
-            {isLoading ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">Loading products...</p>
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium">No products found</h3>
-                <p className="text-muted-foreground mt-2">
-                  Try adjusting your search or filter to find what you're looking for.
-                </p>
-                <Button 
-                  className="mt-4" 
-                  variant="outline" 
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSelectedCategories([]);
-                    setSearchParams({});
-                  }}
-                >
-                  Clear all filters
-                </Button>
-              </div>
-            ) : (
-              <>
-                <div className="mb-4">
-                  <p className="text-muted-foreground">
-                    Showing {filteredProducts.length} products
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProducts.map(product => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      enterpriseName={product.enterprise.name}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
