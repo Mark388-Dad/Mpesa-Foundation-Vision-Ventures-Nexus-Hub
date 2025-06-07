@@ -7,22 +7,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface CategoryFilterProps {
   categories: Category[];
-  selectedCategories: string[];
-  onCategoryChange: (categoryIds: string[]) => void;
+  selectedCategory: string | null;
+  onCategoryChange: (categoryId: string | null) => void;
   isLoading?: boolean;
 }
 
 export function CategoryFilter({
   categories,
-  selectedCategories,
+  selectedCategory,
   onCategoryChange,
   isLoading = false
 }: CategoryFilterProps) {
   const handleCategoryToggle = (categoryId: string, isChecked: boolean) => {
     if (isChecked) {
-      onCategoryChange([...selectedCategories, categoryId]);
+      onCategoryChange(categoryId);
     } else {
-      onCategoryChange(selectedCategories.filter(id => id !== categoryId));
+      onCategoryChange(null);
     }
   };
 
@@ -51,7 +51,7 @@ export function CategoryFilter({
               <div key={category.id} className="flex items-start space-x-2">
                 <Checkbox
                   id={`category-${category.id}`}
-                  checked={selectedCategories.includes(category.id)}
+                  checked={selectedCategory === category.id}
                   onCheckedChange={(checked) => 
                     handleCategoryToggle(category.id, checked === true)
                   }

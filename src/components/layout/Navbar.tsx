@@ -18,7 +18,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ userRole }: NavbarProps) {
-  const { user, profile, logout } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -41,7 +41,7 @@ export function Navbar({ userRole }: NavbarProps) {
   });
 
   const handleLogout = async () => {
-    await logout();
+    await signOut();
     navigate("/");
   };
 
