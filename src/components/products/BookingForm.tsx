@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +32,8 @@ export function BookingForm({ product }: BookingFormProps) {
       quantity: number;
       status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
     }) => {
+      console.log('Creating booking with data:', bookingData);
+      
       // Create the booking
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
@@ -40,10 +41,17 @@ export function BookingForm({ product }: BookingFormProps) {
         .select()
         .single();
         
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        console.error('Booking creation error:', bookingError);
+        throw bookingError;
+      }
 
-      // Send notifications after successful booking creation
+      console.log('Booking created successfully:', booking);
+
+      // Create notifications manually (bypassing the trigger)
       try {
+        console.log('Creating notifications for booking:', booking.id);
+        
         // Get product details for notifications
         const { data: productData } = await supabase
           .from('products')
@@ -55,11 +63,15 @@ export function BookingForm({ product }: BookingFormProps) {
           .eq('id', bookingData.product_id)
           .single();
 
+        console.log('Product data for notifications:', productData);
+
         // Get all staff members
         const { data: staffProfiles } = await supabase
           .from('profiles')
           .select('id')
           .eq('role', 'staff');
+
+        console.log('Staff profiles:', staffProfiles);
 
         const notifications = [];
 
@@ -96,11 +108,20 @@ export function BookingForm({ product }: BookingFormProps) {
           });
         }
 
+        console.log('Notifications to insert:', notifications);
+
         // Insert all notifications
         if (notifications.length > 0) {
-          await supabase
+          const { error: notificationError } = await supabase
             .from('notifications')
             .insert(notifications);
+            
+          if (notificationError) {
+            console.error('Notification creation error:', notificationError);
+            // Don't fail the booking if notifications fail
+          } else {
+            console.log('Notifications created successfully');
+          }
         }
 
       } catch (notificationError) {
@@ -117,6 +138,7 @@ export function BookingForm({ product }: BookingFormProps) {
       setQuantity(1);
     },
     onError: (error: any) => {
+      console.error('Booking mutation error:', error);
       toast.error(`Booking failed: ${error.message}`);
     }
   });
@@ -147,6 +169,10 @@ export function BookingForm({ product }: BookingFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Starting booking submission');
+    console.log('User:', user);
+    console.log('Profile:', profile);
+    
     if (!user || !profile) {
       toast.error("Please login to book this product");
       navigate("/auth");
@@ -164,6 +190,7 @@ export function BookingForm({ product }: BookingFormProps) {
       return;
     }
     
+    console.log('Submitting booking mutation');
     bookingMutation.mutate({
       product_id: product.id,
       student_id: user.id,
