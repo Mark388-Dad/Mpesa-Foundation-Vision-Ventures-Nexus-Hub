@@ -3,7 +3,6 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import { UserRole } from "@/types";
 
 export interface UserProfile {
@@ -36,7 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
-  const navigate = useNavigate();
   
   // Helper function to map database profile to UserProfile interface
   const mapDatabaseProfile = (data: any): UserProfile => ({
@@ -153,7 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast.success("Successfully signed in!");
-      navigate('/');
+      
+      // Navigate using window.location instead of useNavigate
+      window.location.href = '/';
     } catch (error: any) {
       toast.error(`Error signing in: ${error.message}`);
       throw error;
