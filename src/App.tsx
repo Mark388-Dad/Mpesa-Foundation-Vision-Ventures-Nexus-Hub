@@ -46,44 +46,44 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
-          <AppLayout>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/browse" element={<BrowseProducts />} />
-              <Route path="/products/:productId" element={<ProductDetail />} />
-              <Route path="/profile" element={<Profile />} />
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<Index />} />
+              <Route path="auth" element={<Auth />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="products" element={<ProductsPage />} />
+              <Route path="browse" element={<BrowseProducts />} />
+              <Route path="products/:productId" element={<ProductDetail />} />
+              <Route path="profile" element={<Profile />} />
               
               {/* Student routes */}
-              <Route path="/student/dashboard" element={<StudentDashboard />} />
-              <Route path="/student/bookings" element={<StudentBookings />} />
-              <Route path="/student/notifications" element={<StudentNotifications />} />
-              <Route path="/student/reviews" element={<StudentReviews />} />
-              <Route path="/student/support" element={<StudentSupport />} />
+              <Route path="student/dashboard" element={<StudentDashboard />} />
+              <Route path="student/bookings" element={<StudentBookings />} />
+              <Route path="student/notifications" element={<StudentNotifications />} />
+              <Route path="student/reviews" element={<StudentReviews />} />
+              <Route path="student/support" element={<StudentSupport />} />
               
               {/* Enterprise routes */}
-              <Route path="/enterprise/products" element={<EnterpriseProducts />} />
-              <Route path="/enterprise/feedback" element={<EnterpriseFeedback />} />
-              <Route path="/enterprise/notifications" element={<EnterpriseNotifications />} />
-              <Route path="/enterprise/settings" element={<EnterpriseSettings />} />
+              <Route path="enterprise/products" element={<EnterpriseProducts />} />
+              <Route path="enterprise/feedback" element={<EnterpriseFeedback />} />
+              <Route path="enterprise/notifications" element={<EnterpriseNotifications />} />
+              <Route path="enterprise/settings" element={<EnterpriseSettings />} />
               
               {/* Staff/Admin routes */}
-              <Route path="/admin" element={<AdminPanel />} />
-              <Route path="/admin/analytics" element={<AdminAnalytics />} />
-              <Route path="/admin/products" element={<AdminProducts />} />
-              <Route path="/admin/communications" element={<AdminCommunications />} />
-              <Route path="/admin/notifications" element={<AdminNotifications />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="admin" element={<AdminPanel />} />
+              <Route path="admin/analytics" element={<AdminAnalytics />} />
+              <Route path="admin/products" element={<AdminProducts />} />
+              <Route path="admin/communications" element={<AdminCommunications />} />
+              <Route path="admin/notifications" element={<AdminNotifications />} />
+              <Route path="admin/settings" element={<AdminSettings />} />
               
               {/* Category routes */}
-              <Route path="/categories/:categoryId" element={<CategoryProducts />} />
+              <Route path="categories/:categoryId" element={<CategoryProducts />} />
               
               {/* 404 route */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AppLayout>
+            </Route>
+          </Routes>
           <Toaster />
         </AuthProvider>
       </Router>
