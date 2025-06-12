@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { sendBookingEmail } from "@/utils/emailService";
 
 interface BookingFormProps {
   product: Product;
@@ -127,6 +128,27 @@ export function BookingForm({ product }: BookingFormProps) {
       } catch (notificationError) {
         console.error('Error sending notifications:', notificationError);
         // Don't fail the booking if notifications fail
+      }
+
+      // Send email notification
+      try {
+        console.log('Sending email notification for booking:', booking.id);
+        
+        if (profile?.email && profile?.fullName) {
+          await sendBookingEmail({
+            userEmail: profile.email,
+            studentName: profile.fullName,
+            productName: product.name,
+            quantity: bookingData.quantity,
+            totalPrice: formatPrice(product.price * bookingData.quantity),
+            status: bookingData.status,
+            bookingId: booking.id,
+          });
+          console.log('Email notification sent successfully');
+        }
+      } catch (emailError) {
+        console.error('Error sending email notification:', emailError);
+        // Don't fail the booking if email fails
       }
         
       return booking;
