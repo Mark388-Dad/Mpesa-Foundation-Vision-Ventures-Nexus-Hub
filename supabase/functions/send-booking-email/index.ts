@@ -29,6 +29,27 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log('Edge function called - send-booking-email');
+    console.log('Request method:', req.method);
+    
+    // Check if RESEND_API_KEY is available
+    const apiKey = Deno.env.get("RESEND_API_KEY");
+    if (!apiKey) {
+      console.error('RESEND_API_KEY is not set');
+      return new Response(
+        JSON.stringify({ error: 'RESEND_API_KEY is not configured' }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    
+    console.log('RESEND_API_KEY is available');
+
+    const requestBody = await req.json();
+    console.log('Request body received:', requestBody);
+    
     const { 
       to, 
       subject, 
@@ -39,9 +60,10 @@ const handler = async (req: Request): Promise<Response> => {
       status, 
       pickupCode,
       bookingId 
-    }: BookingEmailRequest = await req.json();
+    }: BookingEmailRequest = requestBody;
 
     console.log('Sending booking email to:', to);
+    console.log('Email subject:', subject);
 
     const getEmailContent = () => {
       switch (status) {
@@ -119,6 +141,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
+    console.log('Preparing to send email via Resend...');
+
     const emailResponse = await resend.emails.send({
       from: "Academy Marketplace <onboarding@resend.dev>",
       to: [to],
@@ -126,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
       html: getEmailContent(),
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully via Resend:", emailResponse);
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,
@@ -137,8 +161,14 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in send-booking-email function:", error);
+    console.error("Error details:", error.message);
+    console.error("Error stack:", error.stack);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack || 'No stack trace available'
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

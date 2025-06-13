@@ -17,6 +17,7 @@ export const sendBookingEmail = async (params: SendBookingEmailParams) => {
     const subject = getEmailSubject(params.status, params.productName);
     
     console.log('Sending booking email with params:', params);
+    console.log('Email subject:', subject);
     
     const { data, error } = await supabase.functions.invoke('send-booking-email', {
       body: {
@@ -34,6 +35,7 @@ export const sendBookingEmail = async (params: SendBookingEmailParams) => {
 
     if (error) {
       console.error('Error sending booking email:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
 
@@ -41,6 +43,7 @@ export const sendBookingEmail = async (params: SendBookingEmailParams) => {
     return data;
   } catch (error) {
     console.error('Failed to send booking email:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     throw error;
   }
 };
