@@ -1,4 +1,3 @@
-
 import emailjs from '@emailjs/browser';
 
 interface SendBookingEmailParams {
@@ -19,8 +18,8 @@ export const sendBookingEmail = async (params: SendBookingEmailParams) => {
     console.log('Sending booking email with EmailJS and params:', params);
     console.log('Email subject:', subject);
     
-    // Initialize EmailJS (you should set your public key)
-    emailjs.init("YOUR_PUBLIC_KEY"); // Replace with your actual public key
+    // Initialize EmailJS with your public key
+    emailjs.init("bRQHjMXExw_vnX2WU");
     
     const templateParams = {
       to_email: params.userEmail,
