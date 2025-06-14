@@ -11,7 +11,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { sendBookingEmail } from "@/utils/emailService";
 
 interface BookingFormProps {
   product: Product;
@@ -130,21 +129,29 @@ export function BookingForm({ product }: BookingFormProps) {
         // Don't fail the booking if notifications fail
       }
 
-      // Send email notification
+      // Send email notification using Resend edge function
       try {
-        console.log('Sending email notification for booking:', booking.id);
+        console.log('Sending email notification via Resend for booking:', booking.id);
         
         if (profile?.email && profile?.fullName) {
-          await sendBookingEmail({
-            userEmail: profile.email,
-            studentName: profile.fullName,
-            productName: product.name,
-            quantity: bookingData.quantity,
-            totalPrice: formatPrice(product.price * bookingData.quantity),
-            status: bookingData.status,
-            bookingId: booking.id,
+          const { error: emailError } = await supabase.functions.invoke('send-booking-email', {
+            body: {
+              to: profile.email,
+              subject: `Booking Created - ${product.name}`,
+              studentName: profile.fullName,
+              productName: product.name,
+              quantity: bookingData.quantity,
+              totalPrice: formatPrice(product.price * bookingData.quantity),
+              status: bookingData.status,
+              bookingId: booking.id,
+            }
           });
-          console.log('Email notification sent successfully');
+          
+          if (emailError) {
+            console.error('Email notification error:', emailError);
+          } else {
+            console.log('Email notification sent successfully via Resend');
+          }
         }
       } catch (emailError) {
         console.error('Error sending email notification:', emailError);
