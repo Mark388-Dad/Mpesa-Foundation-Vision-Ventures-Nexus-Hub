@@ -20,13 +20,20 @@ export function NotificationCenter() {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      console.log('Fetching notifications for user:', user.id);
+      
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        throw error;
+      }
+      
+      console.log('Fetched notifications:', data);
       return data || [];
     },
     enabled: !!user?.id
@@ -35,17 +42,28 @@ export function NotificationCenter() {
   // Mark notification as read
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
+      console.log('Marking notification as read:', notificationId);
+      
+      const { data, error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('id', notificationId);
+        .eq('id', notificationId)
+        .eq('user_id', user?.id);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        throw error;
+      }
+      
+      console.log('Notification marked as read:', data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+      toast.success("Notification marked as read");
     },
     onError: (error: any) => {
+      console.error('Mark as read mutation error:', error);
       toast.error(`Failed to mark notification as read: ${error.message}`);
     }
   });
@@ -53,18 +71,28 @@ export function NotificationCenter() {
   // Delete notification
   const deleteNotificationMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
+      console.log('Deleting notification:', notificationId);
+      
+      const { data, error } = await supabase
         .from('notifications')
         .delete()
-        .eq('id', notificationId);
+        .eq('id', notificationId)
+        .eq('user_id', user?.id);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting notification:', error);
+        throw error;
+      }
+      
+      console.log('Notification deleted:', data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
       toast.success("Notification deleted");
     },
     onError: (error: any) => {
+      console.error('Delete notification mutation error:', error);
       toast.error(`Failed to delete notification: ${error.message}`);
     }
   });
@@ -74,24 +102,46 @@ export function NotificationCenter() {
     mutationFn: async () => {
       if (!user?.id) return;
       
-      const { error } = await supabase
+      console.log('Marking all notifications as read for user:', user.id);
+      
+      const { data, error } = await supabase
         .from('notifications')
         .update({ read: true })
         .eq('user_id', user.id)
         .eq('read', false);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error marking all as read:', error);
+        throw error;
+      }
+      
+      console.log('All notifications marked as read:', data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
       toast.success("All notifications marked as read");
     },
     onError: (error: any) => {
+      console.error('Mark all as read mutation error:', error);
       toast.error(`Failed to mark all as read: ${error.message}`);
     }
   });
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   if (isLoading) {
     return <div>Loading notifications...</div>;
@@ -116,7 +166,7 @@ export function NotificationCenter() {
             onClick={() => markAllAsReadMutation.mutate()}
             disabled={markAllAsReadMutation.isPending}
           >
-            Mark all read
+            {markAllAsReadMutation.isPending ? "Marking..." : "Mark all read"}
           </Button>
         )}
       </CardHeader>
@@ -132,7 +182,7 @@ export function NotificationCenter() {
                 <div
                   key={notification.id}
                   className={`p-3 rounded-lg border ${
-                    notification.read ? 'bg-muted/50' : 'bg-background'
+                    notification.read ? 'bg-muted/50' : 'bg-background border-blue-200'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -142,7 +192,7 @@ export function NotificationCenter() {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
-                        {new Date(notification.created_at).toLocaleDateString()}
+                        {formatDateTime(notification.created_at)}
                       </p>
                     </div>
                     <div className="flex gap-1 ml-2">
@@ -152,6 +202,7 @@ export function NotificationCenter() {
                           size="sm"
                           onClick={() => markAsReadMutation.mutate(notification.id)}
                           disabled={markAsReadMutation.isPending}
+                          title="Mark as read"
                         >
                           <Check className="h-3 w-3" />
                         </Button>
@@ -161,6 +212,7 @@ export function NotificationCenter() {
                         size="sm"
                         onClick={() => deleteNotificationMutation.mutate(notification.id)}
                         disabled={deleteNotificationMutation.isPending}
+                        title="Delete notification"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

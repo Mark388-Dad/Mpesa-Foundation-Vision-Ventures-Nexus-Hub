@@ -2,6 +2,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 const StudentNotifications = () => {
   const { profile, loading } = useAuth();
@@ -25,9 +26,13 @@ const StudentNotifications = () => {
   return (
     <div className="academy-container py-8">
       <h1 className="text-2xl font-bold mb-6">Notifications</h1>
-      <p className="text-muted-foreground">
-        View your latest notifications and updates.
+      <p className="text-muted-foreground mb-6">
+        View your latest notifications and updates about your bookings.
       </p>
+      
+      <div className="flex justify-center">
+        <NotificationCenter />
+      </div>
     </div>
   );
 };
