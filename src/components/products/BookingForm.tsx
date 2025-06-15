@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,9 @@ export function BookingForm({ product }: BookingFormProps) {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  
+  console.log('BookingForm - user:', user?.id);
+  console.log('BookingForm - profile:', profile);
   
   // Check if the user is trying to book their own product
   const isOwnProduct = profile?.role === 'enterprise' && profile?.enterpriseId === product.enterpriseId;
@@ -52,12 +56,16 @@ export function BookingForm({ product }: BookingFormProps) {
       try {
         console.log('Sending email notification via Resend for booking:', booking.id);
         
-        if (profile?.email && profile?.fullName) {
+        // Use user email if profile email is not available
+        const userEmail = profile?.email || user?.email;
+        const userName = profile?.fullName || profile?.username || user?.email || 'User';
+        
+        if (userEmail) {
           const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-booking-email', {
             body: {
-              to: profile.email,
+              to: userEmail,
               subject: `Booking Created - ${product.name}`,
-              studentName: profile.fullName,
+              studentName: userName,
               productName: product.name,
               quantity: bookingData.quantity,
               totalPrice: formatPrice(product.price * bookingData.quantity),
@@ -72,6 +80,8 @@ export function BookingForm({ product }: BookingFormProps) {
           } else {
             console.log('Email notification sent successfully via Resend:', emailResult);
           }
+        } else {
+          console.warn('No email address available for notification');
         }
       } catch (emailError) {
         console.error('Error sending email notification:', emailError);
@@ -122,7 +132,8 @@ export function BookingForm({ product }: BookingFormProps) {
     console.log('User:', user);
     console.log('Profile:', profile);
     
-    if (!user || !profile) {
+    if (!user) {
+      console.log('No user found, redirecting to auth');
       toast.error("Please login to book this product");
       navigate("/auth");
       return;

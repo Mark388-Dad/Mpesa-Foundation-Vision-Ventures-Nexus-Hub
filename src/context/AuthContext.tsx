@@ -51,32 +51,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updatedAt: data.updated_at
   });
   
+  // Function to fetch profile data
+  const fetchProfile = async (userId: string) => {
+    try {
+      console.log('Fetching profile for user:', userId);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error("Error fetching user profile:", error);
+        
+        // If profile doesn't exist, create one from user metadata
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, creating from user metadata');
+          const currentUser = await supabase.auth.getUser();
+          
+          if (currentUser.data.user) {
+            const userData = currentUser.data.user.user_metadata;
+            const profileData = {
+              id: currentUser.data.user.id,
+              email: currentUser.data.user.email,
+              role: userData.role || 'student',
+              username: userData.username,
+              full_name: userData.fullName || '',
+              admission_number: userData.admissionNumber,
+              phone_number: userData.phoneNumber,
+              enterprise_id: userData.enterpriseId,
+              avatar_url: userData.avatarUrl
+            };
+            
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert(profileData)
+              .select()
+              .single();
+              
+            if (createError) {
+              console.error('Error creating profile:', createError);
+            } else if (newProfile) {
+              console.log('Profile created successfully:', newProfile);
+              setProfile(mapDatabaseProfile(newProfile));
+            }
+          }
+        }
+      } else if (data) {
+        console.log('Profile fetched successfully:', data);
+        setProfile(mapDatabaseProfile(data));
+      }
+    } catch (err) {
+      console.error("Error in profile fetch:", err);
+    }
+  };
+  
   useEffect(() => {
-    // Set up auth state subscription first
+    console.log('Setting up auth state subscription');
+    
+    // Set up auth state subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Use setTimeout to prevent potential deadlocks
-          setTimeout(async () => {
-            try {
-              const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-                
-              if (error) {
-                console.error("Error fetching user profile:", error);
-              } else if (data) {
-                setProfile(mapDatabaseProfile(data));
-              }
-            } catch (err) {
-              console.error("Error in profile fetch:", err);
-            }
-          }, 0);
+          await fetchProfile(session.user.id);
         } else {
           setProfile(null);
         }
@@ -85,25 +128,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
     
-    // Then check for initial session
+    // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('Initial session:', session?.user?.id);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (error) {
-            console.error("Error fetching user profile:", error);
-          } else if (data) {
-            setProfile(mapDatabaseProfile(data));
-          }
+          await fetchProfile(session.user.id);
         }
       } catch (error) {
         console.error("Error getting session:", error);
@@ -138,6 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Starting sign in process for:', email);
+      
       // Clean up existing auth state
       cleanupAuthState();
       
@@ -148,13 +185,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Continue even if this fails
       }
       
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      
+      console.log('Sign in successful, user:', data.user?.id);
       toast.success("Successfully signed in!");
       
       // Navigate using window.location instead of useNavigate
       window.location.href = '/';
     } catch (error: any) {
+      console.error('Sign in error:', error);
       toast.error(`Error signing in: ${error.message}`);
       throw error;
     }
