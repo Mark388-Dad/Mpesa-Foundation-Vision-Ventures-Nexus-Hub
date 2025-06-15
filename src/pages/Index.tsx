@@ -3,9 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EnterpriseCategoriesGrid } from "@/components/categories/EnterpriseCategoriesGrid";
 import { EnterpriseCategory } from "@/types";
+import { useAuth } from "@/context/AuthContext";
 
 const Index = () => {
+  const { user, profile } = useAuth();
+  
   console.log('Index page rendering...');
+  console.log('User:', user?.id);
+  console.log('Profile:', profile?.role);
   
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['enterprise-categories'],
