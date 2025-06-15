@@ -7,7 +7,7 @@ import { EnterpriseSidebar } from "./sidebars/EnterpriseSidebar";
 import { StaffSidebar } from "./sidebars/StaffSidebar";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types";
-import { cn } from "@/lib/utils";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 interface AppLayoutProps {
   userRole?: UserRole;
@@ -21,28 +21,45 @@ export function AppLayout({ userRole }: AppLayoutProps) {
   console.log('Profile:', profile);
   console.log('User authenticated:', !!user);
   
+  const renderSidebar = () => {
+    if (!user || !activeRole) return null;
+    
+    switch (activeRole) {
+      case 'student':
+        return <StudentSidebar />;
+      case 'enterprise':
+        return <EnterpriseSidebar />;
+      case 'staff':
+        return <StaffSidebar />;
+      default:
+        return null;
+    }
+  };
+  
   return (
     <div className="min-h-screen flex flex-col w-full">
-      <Navbar userRole={activeRole} />
-      
-      <div className="flex flex-1 w-full">
-        {/* Role-specific sidebar - only show if user is authenticated and has a role */}
-        {user && activeRole === 'student' && <StudentSidebar />}
-        {user && activeRole === 'enterprise' && <EnterpriseSidebar />}
-        {user && activeRole === 'staff' && <StaffSidebar />}
-        
-        {/* Main content area */}
-        <main className={cn(
-          "flex-1 min-h-full overflow-auto",
-          user && activeRole ? "md:ml-0" : "w-full"
-        )}>
-          <div className="w-full h-full">
-            <Outlet />
+      {user && activeRole ? (
+        <SidebarProvider defaultOpen={true}>
+          <div className="flex flex-1 w-full">
+            {renderSidebar()}
+            <SidebarInset>
+              <Navbar userRole={activeRole} />
+              <main className="flex-1 min-h-full overflow-auto p-4">
+                <Outlet />
+              </main>
+              <Footer />
+            </SidebarInset>
           </div>
-        </main>
-      </div>
-      
-      <Footer />
+        </SidebarProvider>
+      ) : (
+        <>
+          <Navbar userRole={activeRole} />
+          <main className="flex-1 min-h-full overflow-auto">
+            <Outlet />
+          </main>
+          <Footer />
+        </>
+      )}
     </div>
   );
 }
