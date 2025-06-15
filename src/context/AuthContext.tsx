@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -65,70 +64,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         console.error("Error fetching user profile:", error);
         
-        // If profile doesn't exist, create one from user metadata
-        if (error.code === 'PGRST116') {
-          console.log('Profile not found, creating from user metadata');
-          const currentUser = await supabase.auth.getUser();
+        // If profile doesn't exist, create a basic profile from auth user
+        console.log('Profile not found, creating basic profile from user data');
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        
+        if (currentUser) {
+          const userData = currentUser.user_metadata || {};
+          const basicProfile: UserProfile = {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            role: userData.role || 'student',
+            username: userData.username || currentUser.email?.split('@')[0],
+            fullName: userData.fullName || '',
+            admissionNumber: userData.admissionNumber,
+            phoneNumber: userData.phoneNumber,
+            enterpriseId: userData.enterpriseId,
+            avatarUrl: userData.avatarUrl,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
           
-          if (currentUser.data.user) {
-            const userData = currentUser.data.user.user_metadata;
-            const profileData = {
-              id: currentUser.data.user.id,
-              email: currentUser.data.user.email,
-              role: userData.role || 'student',
-              username: userData.username,
-              full_name: userData.fullName || '',
-              admission_number: userData.admissionNumber,
-              phone_number: userData.phoneNumber,
-              enterprise_id: userData.enterpriseId,
-              avatar_url: userData.avatarUrl
-            };
-            
+          console.log('Setting basic profile:', basicProfile);
+          setProfile(basicProfile);
+          
+          // Try to create the profile in the database
+          try {
             const { data: newProfile, error: createError } = await supabase
               .from('profiles')
-              .insert(profileData)
+              .insert({
+                id: currentUser.id,
+                email: currentUser.email,
+                role: userData.role || 'student',
+                username: userData.username || currentUser.email?.split('@')[0],
+                full_name: userData.fullName || '',
+                admission_number: userData.admissionNumber,
+                phone_number: userData.phoneNumber,
+                enterprise_id: userData.enterpriseId,
+                avatar_url: userData.avatarUrl
+              })
               .select()
               .single();
               
-            if (createError) {
-              console.error('Error creating profile:', createError);
-              // Set a default profile to prevent undefined issues
-              setProfile({
-                id: currentUser.data.user.id,
-                email: currentUser.data.user.email || '',
-                role: userData.role || 'student',
-                username: userData.username,
-                fullName: userData.fullName || '',
-                admissionNumber: userData.admissionNumber,
-                phoneNumber: userData.phoneNumber,
-                enterpriseId: userData.enterpriseId,
-                avatarUrl: userData.avatarUrl,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              });
-            } else if (newProfile) {
-              console.log('Profile created successfully:', newProfile);
+            if (!createError && newProfile) {
+              console.log('Profile created in database:', newProfile);
               setProfile(mapDatabaseProfile(newProfile));
             }
-          }
-        } else {
-          // For other errors, still set a basic profile to prevent undefined
-          const currentUser = await supabase.auth.getUser();
-          if (currentUser.data.user) {
-            const userData = currentUser.data.user.user_metadata;
-            setProfile({
-              id: currentUser.data.user.id,
-              email: currentUser.data.user.email || '',
-              role: userData.role || 'student',
-              username: userData.username,
-              fullName: userData.fullName || '',
-              admissionNumber: userData.admissionNumber,
-              phoneNumber: userData.phoneNumber,
-              enterpriseId: userData.enterpriseId,
-              avatarUrl: userData.avatarUrl,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            });
+          } catch (createErr) {
+            console.log('Could not create profile in DB, using basic profile:', createErr);
           }
         }
       } else if (data) {
@@ -137,23 +119,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error("Error in profile fetch:", err);
-      // Fallback to prevent undefined profile
-      const currentUser = await supabase.auth.getUser();
-      if (currentUser.data.user) {
-        const userData = currentUser.data.user.user_metadata;
-        setProfile({
-          id: currentUser.data.user.id,
-          email: currentUser.data.user.email || '',
-          role: userData.role || 'student',
-          username: userData.username,
-          fullName: userData.fullName || '',
-          admissionNumber: userData.admissionNumber,
-          phoneNumber: userData.phoneNumber,
-          enterpriseId: userData.enterpriseId,
-          avatarUrl: userData.avatarUrl,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
+      
+      // Final fallback - get user data and create minimal profile
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          const userData = currentUser.user_metadata || {};
+          const fallbackProfile: UserProfile = {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            role: userData.role || 'student',
+            username: userData.username || currentUser.email?.split('@')[0],
+            fullName: userData.fullName || '',
+            admissionNumber: userData.admissionNumber,
+            phoneNumber: userData.phoneNumber,
+            enterpriseId: userData.enterpriseId,
+            avatarUrl: userData.avatarUrl,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          console.log('Using fallback profile:', fallbackProfile);
+          setProfile(fallbackProfile);
+        }
+      } catch (fallbackErr) {
+        console.error('Even fallback failed:', fallbackErr);
       }
     }
   };
