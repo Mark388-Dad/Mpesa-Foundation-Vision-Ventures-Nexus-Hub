@@ -67,13 +67,7 @@ export function AppLayout({ userRole }: AppLayoutProps) {
           <SidebarInset>
             <Navbar userRole={activeRole} />
             <main className="flex-1 min-h-full overflow-auto p-4">
-              {loading ? (
-                <div className="flex h-full w-full items-center justify-center">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-                </div>
-              ) : (
-                <Outlet />
-              )}
+              <Outlet />
             </main>
             <Footer />
           </SidebarInset>
