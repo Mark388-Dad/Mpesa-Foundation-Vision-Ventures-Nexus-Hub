@@ -92,10 +92,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               
             if (createError) {
               console.error('Error creating profile:', createError);
+              // Set a default profile to prevent undefined issues
+              setProfile({
+                id: currentUser.data.user.id,
+                email: currentUser.data.user.email || '',
+                role: userData.role || 'student',
+                username: userData.username,
+                fullName: userData.fullName || '',
+                admissionNumber: userData.admissionNumber,
+                phoneNumber: userData.phoneNumber,
+                enterpriseId: userData.enterpriseId,
+                avatarUrl: userData.avatarUrl,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
             } else if (newProfile) {
               console.log('Profile created successfully:', newProfile);
               setProfile(mapDatabaseProfile(newProfile));
             }
+          }
+        } else {
+          // For other errors, still set a basic profile to prevent undefined
+          const currentUser = await supabase.auth.getUser();
+          if (currentUser.data.user) {
+            const userData = currentUser.data.user.user_metadata;
+            setProfile({
+              id: currentUser.data.user.id,
+              email: currentUser.data.user.email || '',
+              role: userData.role || 'student',
+              username: userData.username,
+              fullName: userData.fullName || '',
+              admissionNumber: userData.admissionNumber,
+              phoneNumber: userData.phoneNumber,
+              enterpriseId: userData.enterpriseId,
+              avatarUrl: userData.avatarUrl,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
           }
         }
       } else if (data) {
@@ -104,6 +137,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error("Error in profile fetch:", err);
+      // Fallback to prevent undefined profile
+      const currentUser = await supabase.auth.getUser();
+      if (currentUser.data.user) {
+        const userData = currentUser.data.user.user_metadata;
+        setProfile({
+          id: currentUser.data.user.id,
+          email: currentUser.data.user.email || '',
+          role: userData.role || 'student',
+          username: userData.username,
+          fullName: userData.fullName || '',
+          admissionNumber: userData.admissionNumber,
+          phoneNumber: userData.phoneNumber,
+          enterpriseId: userData.enterpriseId,
+          avatarUrl: userData.avatarUrl,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
     }
   };
   
