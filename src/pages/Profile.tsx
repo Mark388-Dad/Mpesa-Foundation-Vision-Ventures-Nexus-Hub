@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -9,18 +8,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Save, User } from "lucide-react";
+import { Camera, Save, User, Lock, Eye, EyeOff } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const Profile = () => {
   const { profile, user, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
   const [formData, setFormData] = useState({
     username: '',
     fullName: '',
     phoneNumber: '',
     admissionNumber: ''
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
@@ -115,8 +125,45 @@ const Profile = () => {
     }
   });
 
+  // Change password mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async ({ newPassword }: { newPassword: string }) => {
+      const { error } = await supabase.auth.updateUser({ 
+        password: newPassword 
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Password changed successfully");
+      setIsChangingPassword(false);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setShowPasswords({ current: false, new: false, confirm: false });
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to change password: ${error.message}`);
+    }
+  });
+
   const handleSave = () => {
     updateProfileMutation.mutate(formData);
+  };
+
+  const handlePasswordChange = () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
+    changePasswordMutation.mutate({ newPassword: passwordData.newPassword });
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,6 +171,13 @@ const Profile = () => {
     if (file) {
       setAvatarFile(file);
     }
+  };
+
+  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
   };
 
   const getRoleColor = (role: string) => {
@@ -144,9 +198,10 @@ const Profile = () => {
 
   return (
     <div className="academy-container py-8">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">My Profile</h1>
+      <div className="max-w-2xl mx-auto space-y-6">
+        <h1 className="text-2xl font-bold">My Profile</h1>
         
+        {/* Profile Information Card */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -322,6 +377,98 @@ const Profile = () => {
               </div>
             </div>
           </CardContent>
+        </Card>
+
+        {/* Password Change Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Change Password
+              </CardTitle>
+              {!isChangingPassword ? (
+                <Button onClick={() => setIsChangingPassword(true)} variant="outline">
+                  Change Password
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => {
+                      setIsChangingPassword(false);
+                      setPasswordData({
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: ''
+                      });
+                    }} 
+                    variant="outline"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handlePasswordChange} 
+                    disabled={changePasswordMutation.isPending}
+                    className="btn-primary"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {changePasswordMutation.isPending ? 'Updating...' : 'Update Password'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          {isChangingPassword && (
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showPasswords.new ? 'text' : 'password'}
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                    placeholder="Enter new password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                    onClick={() => togglePasswordVisibility('new')}
+                  >
+                    {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showPasswords.confirm ? 'text' : 'password'}
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                    placeholder="Confirm new password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                    onClick={() => togglePasswordVisibility('confirm')}
+                  >
+                    {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                Password must be at least 6 characters long.
+              </p>
+            </CardContent>
+          )}
         </Card>
       </div>
     </div>

@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import ProductsPage from "./pages/ProductsPage";
 import BrowseProducts from "./pages/BrowseProducts";
 import BookingDashboard from "./pages/BookingDashboard";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ function App() {
                 <Route index element={<Index />} />
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="browse" element={<BrowseProducts />} />
+                <Route path="profile" element={<Profile />} />
               </Route>
               
               {/* 404 route */}
