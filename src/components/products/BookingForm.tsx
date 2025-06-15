@@ -48,93 +48,12 @@ export function BookingForm({ product }: BookingFormProps) {
 
       console.log('Booking created successfully:', booking);
 
-      // Create notifications manually (bypassing the trigger)
-      try {
-        console.log('Creating notifications for booking:', booking.id);
-        
-        // Get product details for notifications
-        const { data: productData } = await supabase
-          .from('products')
-          .select(`
-            name,
-            enterprise_id,
-            enterprises:enterprise_id(owner_id)
-          `)
-          .eq('id', bookingData.product_id)
-          .single();
-
-        console.log('Product data for notifications:', productData);
-
-        // Get all staff members
-        const { data: staffProfiles } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('role', 'staff');
-
-        console.log('Staff profiles:', staffProfiles);
-
-        const notifications = [];
-
-        // Notification to student who made the booking
-        notifications.push({
-          user_id: bookingData.student_id,
-          type: 'booking',
-          title: 'Booking Created',
-          message: `Your booking for "${productData?.name}" has been created and is pending confirmation.`,
-          related_id: booking.id
-        });
-
-        // Notification to enterprise owner
-        if (productData?.enterprises?.owner_id) {
-          notifications.push({
-            user_id: productData.enterprises.owner_id,
-            type: 'booking',
-            title: 'New Booking Received',
-            message: `You have a new booking for your product "${productData?.name}".`,
-            related_id: booking.id
-          });
-        }
-
-        // Notifications to all staff members
-        if (staffProfiles) {
-          staffProfiles.forEach(staff => {
-            notifications.push({
-              user_id: staff.id,
-              type: 'booking',
-              title: 'New Booking Alert',
-              message: `A new booking has been made for "${productData?.name}".`,
-              related_id: booking.id
-            });
-          });
-        }
-
-        console.log('Notifications to insert:', notifications);
-
-        // Insert all notifications
-        if (notifications.length > 0) {
-          const { error: notificationError } = await supabase
-            .from('notifications')
-            .insert(notifications);
-            
-          if (notificationError) {
-            console.error('Notification creation error:', notificationError);
-            // Don't fail the booking if notifications fail
-          } else {
-            console.log('Notifications created successfully');
-          }
-        }
-
-      } catch (notificationError) {
-        console.error('Error sending notifications:', notificationError);
-        // Don't fail the booking if notifications fail
-      }
-
       // Send email notification using Resend edge function
       try {
         console.log('Sending email notification via Resend for booking:', booking.id);
         
         if (profile?.email && profile?.fullName) {
-          const { error: emailError } = await supabase.functions.invoke('send-booking-email', {
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-booking-email', {
             body: {
               to: profile.email,
               subject: `Booking Created - ${product.name}`,
@@ -149,8 +68,9 @@ export function BookingForm({ product }: BookingFormProps) {
           
           if (emailError) {
             console.error('Email notification error:', emailError);
+            // Don't fail the booking if email fails
           } else {
-            console.log('Email notification sent successfully via Resend');
+            console.log('Email notification sent successfully via Resend:', emailResult);
           }
         }
       } catch (emailError) {

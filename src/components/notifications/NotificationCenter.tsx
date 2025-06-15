@@ -44,7 +44,7 @@ export function NotificationCenter() {
     mutationFn: async (notificationId: string) => {
       console.log('Marking notification as read:', notificationId);
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('notifications')
         .update({ read: true })
         .eq('id', notificationId)
@@ -55,8 +55,7 @@ export function NotificationCenter() {
         throw error;
       }
       
-      console.log('Notification marked as read:', data);
-      return data;
+      console.log('Notification marked as read successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
@@ -73,7 +72,7 @@ export function NotificationCenter() {
     mutationFn: async (notificationId: string) => {
       console.log('Deleting notification:', notificationId);
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('notifications')
         .delete()
         .eq('id', notificationId)
@@ -84,8 +83,7 @@ export function NotificationCenter() {
         throw error;
       }
       
-      console.log('Notification deleted:', data);
-      return data;
+      console.log('Notification deleted successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
@@ -104,7 +102,7 @@ export function NotificationCenter() {
       
       console.log('Marking all notifications as read for user:', user.id);
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('notifications')
         .update({ read: true })
         .eq('user_id', user.id)
@@ -115,8 +113,7 @@ export function NotificationCenter() {
         throw error;
       }
       
-      console.log('All notifications marked as read:', data);
-      return data;
+      console.log('All notifications marked as read successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
