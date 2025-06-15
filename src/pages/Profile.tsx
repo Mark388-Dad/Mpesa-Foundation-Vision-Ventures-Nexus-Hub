@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -35,15 +36,32 @@ const Profile = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
   
+  console.log('Profile page - loading:', loading, 'user:', !!user, 'profile:', !!profile);
+  
   // Loading state
   if (loading) {
-    return <div className="academy-container py-16 text-center">Loading...</div>;
+    return (
+      <div className="academy-container py-16 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-4 text-muted-foreground">Loading profile...</p>
+      </div>
+    );
   }
   
   // Check if user is authenticated
-  if (!profile || !user) {
+  if (!user) {
+    console.log('No user found, redirecting to auth');
     toast.error("You need to be logged in to access your profile");
-    return <Navigate to="/auth" />;
+    return <Navigate to="/auth" replace />;
+  }
+
+  // If no profile but we have a user, show a basic fallback
+  if (!profile) {
+    return (
+      <div className="academy-container py-16 text-center">
+        <p className="text-muted-foreground">Setting up your profile...</p>
+      </div>
+    );
   }
 
   // Get enterprise and category info if user is enterprise member
@@ -58,7 +76,10 @@ const Profile = () => {
         .eq('id', profile.enterpriseId)
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching enterprise info:', error);
+        return null;
+      }
       return data;
     },
     enabled: !!profile.enterpriseId
@@ -66,12 +87,14 @@ const Profile = () => {
 
   // Initialize form data
   useEffect(() => {
-    setFormData({
-      username: profile.username || '',
-      fullName: profile.fullName || '',
-      phoneNumber: profile.phoneNumber || '',
-      admissionNumber: profile.admissionNumber || ''
-    });
+    if (profile) {
+      setFormData({
+        username: profile.username || '',
+        fullName: profile.fullName || '',
+        phoneNumber: profile.phoneNumber || '',
+        admissionNumber: profile.admissionNumber || ''
+      });
+    }
   }, [profile]);
 
   // Update profile mutation
@@ -121,6 +144,7 @@ const Profile = () => {
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
     },
     onError: (error: any) => {
+      console.error('Profile update error:', error);
       toast.error(`Failed to update profile: ${error.message}`);
     }
   });
@@ -144,6 +168,7 @@ const Profile = () => {
       setShowPasswords({ current: false, new: false, confirm: false });
     },
     onError: (error: any) => {
+      console.error('Password change error:', error);
       toast.error(`Failed to change password: ${error.message}`);
     }
   });
