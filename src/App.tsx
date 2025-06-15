@@ -12,6 +12,15 @@ import BookingDashboard from "./pages/BookingDashboard";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
+// Enterprise pages
+import EnterpriseReservations from "./pages/enterprise/EnterpriseReservations";
+import EnterpriseMessages from "./pages/enterprise/EnterpriseMessages";
+import EnterpriseDocuments from "./pages/enterprise/EnterpriseDocuments";
+import EnterpriseApprovals from "./pages/enterprise/EnterpriseApprovals";
+import EnterpriseHelp from "./pages/enterprise/EnterpriseHelp";
+import EnterpriseContact from "./pages/enterprise/EnterpriseContact";
+import EnterpriseSettings from "./pages/enterprise/EnterpriseSettings";
+
 const queryClient = new QueryClient();
 
 function App() {
@@ -35,6 +44,15 @@ function App() {
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="browse" element={<BrowseProducts />} />
                 <Route path="profile" element={<Profile />} />
+                
+                {/* Enterprise routes */}
+                <Route path="enterprise/reservations" element={<EnterpriseReservations />} />
+                <Route path="enterprise/messages" element={<EnterpriseMessages />} />
+                <Route path="enterprise/documents" element={<EnterpriseDocuments />} />
+                <Route path="enterprise/approvals" element={<EnterpriseApprovals />} />
+                <Route path="enterprise/help" element={<EnterpriseHelp />} />
+                <Route path="enterprise/contact" element={<EnterpriseContact />} />
+                <Route path="enterprise/settings" element={<EnterpriseSettings />} />
               </Route>
               
               {/* 404 route */}

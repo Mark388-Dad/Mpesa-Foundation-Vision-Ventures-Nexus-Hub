@@ -35,25 +35,25 @@ export const EnterpriseSidebar = () => {
     {
       label: "Dashboard",
       icon: Home,
-      href: "/dashboard",
+      href: "/",
       color: "text-sky-500",
     },
     {
       label: "Book School Facilities",
       icon: Calendar,
-      href: "/enterprise/book-facilities",
+      href: "/booking",
       color: "text-violet-500",
     },
     {
-      label: "Book for Events",
+      label: "Browse Products",
       icon: FileText,
-      href: "/enterprise/book-events",
+      href: "/browse",
       color: "text-pink-700",
     },
     {
-      label: "Request Equipment",
-      icon: FileText,
-      href: "/enterprise/request-equipment",
+      label: "My Products",
+      icon: BookOpen,
+      href: "/products",
       color: "text-orange-500",
     },
   ];
@@ -104,7 +104,7 @@ export const EnterpriseSidebar = () => {
     {
       label: "Edit Profile",
       icon: User,
-      href: "/enterprise/profile",
+      href: "/profile",
       color: "text-gray-600",
     },
     {
