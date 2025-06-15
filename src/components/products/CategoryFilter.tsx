@@ -4,20 +4,43 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Category } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CategoryFilterProps {
-  categories: Category[];
   selectedCategory: string | null;
   onCategoryChange: (categoryId: string | null) => void;
-  isLoading?: boolean;
 }
 
 export function CategoryFilter({
-  categories,
   selectedCategory,
   onCategoryChange,
-  isLoading = false
 }: CategoryFilterProps) {
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      console.log('Fetching categories...');
+      const { data, error } = await supabase
+        .from('enterprise_categories')
+        .select('*')
+        .order('name');
+        
+      if (error) {
+        console.error('Error fetching categories:', error);
+        throw error;
+      }
+      
+      console.log('Categories fetched:', data);
+      return (data || []).map(category => ({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        icon: category.icon,
+        color: category.color
+      })) as Category[];
+    }
+  });
+
   const handleCategoryToggle = (categoryId: string, isChecked: boolean) => {
     if (isChecked) {
       onCategoryChange(categoryId);
@@ -59,8 +82,9 @@ export function CategoryFilter({
                 <div className="grid gap-0.5 leading-none">
                   <Label
                     htmlFor={`category-${category.id}`}
-                    className="text-sm font-medium cursor-pointer"
+                    className="text-sm font-medium cursor-pointer flex items-center"
                   >
+                    {category.icon && <span className="mr-2">{category.icon}</span>}
                     {category.name}
                   </Label>
                   {category.description && (
