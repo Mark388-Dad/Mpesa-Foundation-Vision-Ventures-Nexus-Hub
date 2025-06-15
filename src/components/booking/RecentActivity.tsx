@@ -112,7 +112,8 @@ export function RecentActivity() {
       title: notification.title,
       description: notification.message,
       status: notification.read ? 'read' : 'unread',
-      timestamp: notification.created_at
+      timestamp: notification.created_at,
+      pickup_code: null
     }))
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 8);
 
