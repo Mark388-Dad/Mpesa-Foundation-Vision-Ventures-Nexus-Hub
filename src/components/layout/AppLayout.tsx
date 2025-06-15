@@ -36,38 +36,49 @@ export function AppLayout({ userRole }: AppLayoutProps) {
     }
   };
 
-  if (loading) {
+  // Only show a full-screen loader on the very initial load before user is determined
+  if (loading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
       </div>
     );
   }
+
+  // Logged-out layout
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col w-full">
+        <Navbar />
+        <main className="flex-1 min-h-full overflow-auto">
+          <Outlet />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
   
+  // Logged-in layout
   return (
     <div className="min-h-screen flex flex-col w-full">
-      {user && activeRole ? (
-        <SidebarProvider defaultOpen={true}>
-          <div className="flex flex-1 w-full">
-            {renderSidebar()}
-            <SidebarInset>
-              <Navbar userRole={activeRole} />
-              <main className="flex-1 min-h-full overflow-auto p-4">
+      <SidebarProvider defaultOpen={true}>
+        <div className="flex flex-1 w-full">
+          {renderSidebar()}
+          <SidebarInset>
+            <Navbar userRole={activeRole} />
+            <main className="flex-1 min-h-full overflow-auto p-4">
+              {loading ? (
+                <div className="flex h-full w-full items-center justify-center">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+                </div>
+              ) : (
                 <Outlet />
-              </main>
-              <Footer />
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
-      ) : (
-        <>
-          <Navbar userRole={activeRole} />
-          <main className="flex-1 min-h-full overflow-auto">
-            <Outlet />
-          </main>
-          <Footer />
-        </>
-      )}
+              )}
+            </main>
+            <Footer />
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
     </div>
   );
 }
