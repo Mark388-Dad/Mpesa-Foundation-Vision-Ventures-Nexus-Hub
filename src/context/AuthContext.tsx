@@ -150,8 +150,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     console.log('Setting up auth state subscription');
+    setLoading(true);
     
-    // Set up auth state subscription
+    // Set up auth state subscription.
+    // This will handle initial session, sign in, and sign out.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
@@ -168,27 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     );
-    
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('Initial session:', session?.user?.id);
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        }
-      } catch (error) {
-        console.error("Error getting session:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    getInitialSession();
     
     return () => {
       subscription.unsubscribe();
