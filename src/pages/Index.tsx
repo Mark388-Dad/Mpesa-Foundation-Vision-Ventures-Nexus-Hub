@@ -6,13 +6,14 @@ import { EnterpriseCategory } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 
 const Index = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   
   console.log('Index page rendering...');
   console.log('User:', user?.id);
   console.log('Profile:', profile?.role);
+  console.log('Auth loading:', authLoading);
   
-  const { data: categories = [], isLoading } = useQuery({
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ['enterprise-categories'],
     queryFn: async () => {
       console.log('Fetching enterprise categories...');
@@ -37,9 +38,12 @@ const Index = () => {
         createdAt: category.created_at,
         updatedAt: category.updated_at
       })) as EnterpriseCategory[];
-    }
+    },
+    enabled: !authLoading // Only fetch categories when auth is done loading
   });
 
+  const isLoading = authLoading || categoriesLoading;
+  
   console.log('Index page state - categories:', categories, 'isLoading:', isLoading);
 
   return (
