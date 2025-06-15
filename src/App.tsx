@@ -13,22 +13,28 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function App() {
+  console.log('App component rendering...');
+  
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            {/* Auth route - standalone without AppLayout */}
-            <Route path="/auth" element={<Auth />} />
-            
-            {/* Main app routes with AppLayout */}
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<Index />} />
-              <Route path="products" element={<ProductsPage />} />
-              <Route path="browse" element={<BrowseProducts />} />
+          <div className="min-h-screen w-full">
+            <Routes>
+              {/* Auth route - standalone without AppLayout */}
+              <Route path="/auth" element={<Auth />} />
+              
+              {/* Main app routes with AppLayout */}
+              <Route path="/" element={<AppLayout />}>
+                <Route index element={<Index />} />
+                <Route path="products" element={<ProductsPage />} />
+                <Route path="browse" element={<BrowseProducts />} />
+              </Route>
+              
+              {/* 404 route */}
               <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
+            </Routes>
+          </div>
           <Toaster />
         </AuthProvider>
       </BrowserRouter>
