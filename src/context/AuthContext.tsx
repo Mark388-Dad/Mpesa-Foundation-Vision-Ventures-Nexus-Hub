@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -63,9 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
       if (error) {
         console.error("Error fetching user profile:", error);
-        
-        // If profile doesn't exist, create a basic profile from auth user
-        console.log('Profile not found, creating basic profile from user data');
+        // Create basic profile from auth user if profile doesn't exist
         const { data: { user: currentUser } } = await supabase.auth.getUser();
         
         if (currentUser) {
@@ -84,34 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             updatedAt: new Date().toISOString()
           };
           
-          console.log('Setting basic profile:', basicProfile);
           setProfile(basicProfile);
-          
-          // Try to create the profile in the database
-          try {
-            const { data: newProfile, error: createError } = await supabase
-              .from('profiles')
-              .insert({
-                id: currentUser.id,
-                email: currentUser.email,
-                role: userData.role || 'student',
-                username: userData.username || currentUser.email?.split('@')[0],
-                full_name: userData.fullName || '',
-                admission_number: userData.admissionNumber,
-                phone_number: userData.phoneNumber,
-                enterprise_id: userData.enterpriseId,
-                avatar_url: userData.avatarUrl
-              })
-              .select()
-              .single();
-              
-            if (!createError && newProfile) {
-              console.log('Profile created in database:', newProfile);
-              setProfile(mapDatabaseProfile(newProfile));
-            }
-          } catch (createErr) {
-            console.log('Could not create profile in DB, using basic profile:', createErr);
-          }
         }
       } else if (data) {
         console.log('Profile fetched successfully:', data);
@@ -119,41 +91,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error("Error in profile fetch:", err);
-      
-      // Final fallback - get user data and create minimal profile
-      try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (currentUser) {
-          const userData = currentUser.user_metadata || {};
-          const fallbackProfile: UserProfile = {
-            id: currentUser.id,
-            email: currentUser.email || '',
-            role: userData.role || 'student',
-            username: userData.username || currentUser.email?.split('@')[0],
-            fullName: userData.fullName || '',
-            admissionNumber: userData.admissionNumber,
-            phoneNumber: userData.phoneNumber,
-            enterpriseId: userData.enterpriseId,
-            avatarUrl: userData.avatarUrl,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          
-          console.log('Using fallback profile:', fallbackProfile);
-          setProfile(fallbackProfile);
-        }
-      } catch (fallbackErr) {
-        console.error('Even fallback failed:', fallbackErr);
-      }
     }
   };
   
   useEffect(() => {
     console.log('Setting up auth state subscription');
-    setLoading(true);
     
-    // Set up auth state subscription.
-    // This will handle initial session, sign in, and sign out.
+    // Get initial session first
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log('Initial session:', initialSession?.user?.id);
+        
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        
+        if (initialSession?.user) {
+          await fetchProfile(initialSession.user.id);
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error("Error getting initial session:", error);
+        setLoading(false);
+      }
+    };
+    
+    // Set up auth state subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
@@ -161,60 +125,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
+        if (session?.user && event === 'SIGNED_IN') {
           await fetchProfile(session.user.id);
-        } else {
+        } else if (event === 'SIGNED_OUT') {
           setProfile(null);
         }
         
-        setLoading(false);
+        // Only set loading to false after initial load
+        if (event !== 'INITIAL_SESSION') {
+          setLoading(false);
+        }
       }
     );
+    
+    initializeAuth();
     
     return () => {
       subscription.unsubscribe();
     };
   }, []);
   
-  // Clean up auth state (helper for handling auth limbo)
-  const cleanupAuthState = () => {
-    // Remove all Supabase auth keys from localStorage
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        localStorage.removeItem(key);
-      }
-    });
-    
-    // Remove from sessionStorage if in use
-    Object.keys(sessionStorage || {}).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        sessionStorage.removeItem(key);
-      }
-    });
-  };
-  
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Starting sign in process for:', email);
-      
-      // Clean up existing auth state
-      cleanupAuthState();
-      
-      // Try global sign out first
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
-      }
       
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       
       console.log('Sign in successful, user:', data.user?.id);
       toast.success("Successfully signed in!");
-      
-      // Navigate using window.location instead of useNavigate
-      window.location.href = '/';
     } catch (error: any) {
       console.error('Sign in error:', error);
       toast.error(`Error signing in: ${error.message}`);
@@ -241,20 +180,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const signOut = async () => {
     try {
-      // Clean up auth state
-      cleanupAuthState();
-      
-      // Attempt global sign out
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Clear state
       setUser(null);
       setProfile(null);
       setSession(null);
       
-      // Force page reload for a clean state
-      window.location.href = '/auth';
+      toast.success("Successfully signed out!");
     } catch (error: any) {
       toast.error(`Error signing out: ${error.message}`);
       throw error;

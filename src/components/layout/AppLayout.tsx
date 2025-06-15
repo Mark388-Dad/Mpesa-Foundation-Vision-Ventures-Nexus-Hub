@@ -36,8 +36,8 @@ export function AppLayout({ userRole }: AppLayoutProps) {
     }
   };
 
-  // Only show a full-screen loader on the very initial load before user is determined
-  if (loading && !user) {
+  // Show loading screen only during initial authentication check
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>

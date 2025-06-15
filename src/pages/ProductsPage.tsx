@@ -13,9 +13,10 @@ const ProductsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Fetch products with enterprise and category data
-  const { data: products = [], isLoading } = useQuery({
+  const { data: products = [], isLoading, error } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
+      console.log('Fetching products...');
       const { data, error } = await supabase
         .from('products')
         .select(`
@@ -25,7 +26,12 @@ const ProductsPage = () => {
         `)
         .gt('quantity', 0);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching products:', error);
+        throw error;
+      }
+      
+      console.log('Products fetched successfully:', data?.length);
       
       return (data || []).map(product => ({
         id: product.id,
@@ -67,6 +73,18 @@ const ProductsPage = () => {
     
     return matchesSearch && matchesCategory;
   });
+
+  if (error) {
+    return (
+      <div className="academy-container py-8">
+        <div className="text-center py-12">
+          <Package className="mx-auto h-12 w-12 text-muted-foreground opacity-20" />
+          <h3 className="text-lg font-medium mb-2">Error loading products</h3>
+          <p className="text-muted-foreground">Please try again later</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="academy-container py-8">
