@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ProductsPage from "./pages/ProductsPage";
 import BrowseProducts from "./pages/BrowseProducts";
+import BookingDashboard from "./pages/BookingDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,9 @@ function App() {
             <Routes>
               {/* Auth route - standalone without AppLayout */}
               <Route path="/auth" element={<Auth />} />
+              
+              {/* Booking Dashboard - standalone without AppLayout */}
+              <Route path="/booking" element={<BookingDashboard />} />
               
               {/* Main app routes with AppLayout */}
               <Route path="/" element={<AppLayout />}>
