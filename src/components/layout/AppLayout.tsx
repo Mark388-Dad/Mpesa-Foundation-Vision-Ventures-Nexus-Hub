@@ -14,10 +14,10 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ userRole }: AppLayoutProps) {
-  const { profile, user } = useAuth();
+  const { profile, user, loading } = useAuth();
   const activeRole = userRole || profile?.role;
   
-  console.log('AppLayout rendered with role:', activeRole);
+  console.log('AppLayout rendered with role:', activeRole, 'loading:', loading);
   console.log('Profile:', profile);
   console.log('User authenticated:', !!user);
   
@@ -35,6 +35,14 @@ export function AppLayout({ userRole }: AppLayoutProps) {
         return null;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex flex-col w-full">
