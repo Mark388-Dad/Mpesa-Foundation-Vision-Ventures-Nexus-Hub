@@ -60,20 +60,6 @@ const BrowseProducts = () => {
     }
   });
 
-  // Fetch categories for filter
-  const { data: categories = [] } = useQuery({
-    queryKey: ['enterprise-categories'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('enterprise_categories')
-        .select('*')
-        .order('name');
-        
-      if (error) throw error;
-      return data || [];
-    }
-  });
-
   // Filter products based on search and category
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -113,7 +99,6 @@ const BrowseProducts = () => {
         </div>
         
         <CategoryFilter
-          categories={categories}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
         />
