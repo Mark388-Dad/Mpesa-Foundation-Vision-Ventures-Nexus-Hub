@@ -73,11 +73,11 @@ const handler = async (req: Request): Promise<Response> => {
           ` : ''}
           
           <p style="margin-top: 30px;">
-            Thank you for using our platform!
+            Thank you for using our platform! ${studentName}
           </p>
           
           <p>Best regards,<br>
-          The Academy Team</p>
+          The Mpesa Foundation Academy Vision Ventures</p>
         </div>
       `,
     };
